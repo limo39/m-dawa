@@ -127,9 +127,59 @@ ipcMain.handle('prescriptions:save', async (_, prescription) => {
   return { success: true, prescription };
 });
 
+ipcMain.handle('appointments:getByPatient', async (_, patientId) => {
+  const appointments = store.get('appointments', []) as any[];
+  return appointments.filter(a => a.patientId === patientId);
+});
+
+ipcMain.handle('appointments:save', async (_, appointment) => {
+  const appointments = store.get('appointments', []) as any[];
+  const index = appointments.findIndex(a => a.id === appointment.id);
+  
+  if (index >= 0) {
+    appointments[index] = { ...appointment, updatedAt: new Date() };
+  } else {
+    appointments.push({ ...appointment, createdAt: new Date(), updatedAt: new Date() });
+  }
+  
+  store.set('appointments', appointments);
+  return { success: true, appointment };
+});
+
+ipcMain.handle('labResults:getByPatient', async (_, patientId) => {
+  const labResults = store.get('labResults', []) as any[];
+  return labResults.filter(l => l.patientId === patientId);
+});
+
+ipcMain.handle('labResults:save', async (_, labResult) => {
+  const labResults = store.get('labResults', []) as any[];
+  const index = labResults.findIndex(l => l.id === labResult.id);
+  
+  if (index >= 0) {
+    labResults[index] = { ...labResult, updatedAt: new Date() };
+  } else {
+    labResults.push({ ...labResult, createdAt: new Date(), updatedAt: new Date() });
+  }
+  
+  store.set('labResults', labResults);
+  return { success: true, labResult };
+});
+
+ipcMain.handle('vitals:getByPatient', async (_, patientId) => {
+  const vitals = store.get('vitals', []) as any[];
+  return vitals.filter(v => v.patientId === patientId);
+});
+
+ipcMain.handle('vitals:save', async (_, vital) => {
+  const vitals = store.get('vitals', []) as any[];
+  vitals.push({ ...vital, recordedAt: new Date() });
+  store.set('vitals', vitals);
+  return { success: true, vital };
+});
+
 ipcMain.handle('transfer:receive', async (_, transferData) => {
   // Receive patient data from mobile app
-  const { patient, records, prescriptions } = transferData;
+  const { patient, records, prescriptions, appointments, labResults, vitals } = transferData;
   
   // Save patient
   const patients = store.get('patients', []) as any[];
@@ -165,6 +215,48 @@ ipcMain.handle('transfer:receive', async (_, transferData) => {
     }
   });
   store.set('prescriptions', allPrescriptions);
+  
+  // Save appointments
+  if (appointments) {
+    const allAppointments = store.get('appointments', []) as any[];
+    appointments.forEach((appointment: any) => {
+      const idx = allAppointments.findIndex(a => a.id === appointment.id);
+      if (idx >= 0) {
+        allAppointments[idx] = appointment;
+      } else {
+        allAppointments.push(appointment);
+      }
+    });
+    store.set('appointments', allAppointments);
+  }
+  
+  // Save lab results
+  if (labResults) {
+    const allLabResults = store.get('labResults', []) as any[];
+    labResults.forEach((labResult: any) => {
+      const idx = allLabResults.findIndex(l => l.id === labResult.id);
+      if (idx >= 0) {
+        allLabResults[idx] = labResult;
+      } else {
+        allLabResults.push(labResult);
+      }
+    });
+    store.set('labResults', allLabResults);
+  }
+  
+  // Save vitals
+  if (vitals) {
+    const allVitals = store.get('vitals', []) as any[];
+    vitals.forEach((vital: any) => {
+      const idx = allVitals.findIndex(v => v.id === vital.id);
+      if (idx >= 0) {
+        allVitals[idx] = vital;
+      } else {
+        allVitals.push(vital);
+      }
+    });
+    store.set('vitals', allVitals);
+  }
   
   return { success: true, message: 'Data received successfully' };
 });

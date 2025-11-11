@@ -52,10 +52,54 @@ export interface Prescription {
   updatedAt: Date;
 }
 
+export interface Appointment {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  date: string;
+  time: string;
+  type: 'checkup' | 'followup' | 'emergency' | 'consultation';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LabResult {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  testName: string;
+  testType: 'blood' | 'urine' | 'xray' | 'mri' | 'ct' | 'other';
+  result: string;
+  normalRange?: string;
+  status: 'pending' | 'completed' | 'abnormal';
+  notes?: string;
+  testDate: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Vitals {
+  id: string;
+  patientId: string;
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: number;
+  weight?: number;
+  height?: number;
+  oxygenSaturation?: number;
+  recordedAt: Date;
+  recordedBy: string;
+}
+
 export interface TransferData {
   patient: Patient;
   records: MedicalRecord[];
   prescriptions: Prescription[];
+  appointments?: Appointment[];
+  labResults?: LabResult[];
+  vitals?: Vitals[];
   timestamp: Date;
   signature: string; // For data integrity verification
 }

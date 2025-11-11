@@ -20,6 +20,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPatient: (patientId: string) => ipcRenderer.invoke('prescriptions:getByPatient', patientId),
     save: (prescription: any) => ipcRenderer.invoke('prescriptions:save', prescription)
   },
+  appointments: {
+    getByPatient: (patientId: string) => ipcRenderer.invoke('appointments:getByPatient', patientId),
+    save: (appointment: any) => ipcRenderer.invoke('appointments:save', appointment)
+  },
+  labResults: {
+    getByPatient: (patientId: string) => ipcRenderer.invoke('labResults:getByPatient', patientId),
+    save: (labResult: any) => ipcRenderer.invoke('labResults:save', labResult)
+  },
+  vitals: {
+    getByPatient: (patientId: string) => ipcRenderer.invoke('vitals:getByPatient', patientId),
+    save: (vital: any) => ipcRenderer.invoke('vitals:save', vital)
+  },
   transfer: {
     receive: (data: any) => ipcRenderer.invoke('transfer:receive', data)
   }
