@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
 
 export default function DataTransferScreen() {
   const [patientData, setPatientData] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
+  const [showJSON, setShowJSON] = useState(false);
   const [jsonData, setJsonData] = useState('');
+  const [activeView, setActiveView] = useState<'summary' | 'qr' | 'json'>('summary');
 
   useEffect(() => {
     loadData();
@@ -24,85 +26,194 @@ export default function DataTransferScreen() {
       patient: patientData.patient,
       records: patientData.records || [],
       prescriptions: patientData.prescriptions || [],
+      appointments: patientData.appointments || [],
+      labResults: patientData.labResults || [],
+      vitals: patientData.vitals || [],
       timestamp: new Date(),
       signature: 'encrypted_signature_here'
     };
 
-    const json = JSON.stringify(transferData);
+    const json = JSON.stringify(transferData, null, 2);
     setJsonData(json);
     setShowQR(true);
+    setActiveView('qr');
   };
 
   const handleCopyData = () => {
+    Clipboard.setString(jsonData);
     Alert.alert(
-      'Transfer Data',
-      'Copy this data and paste it into the doctor\'s desktop app:\n\n' + jsonData.substring(0, 100) + '...',
-      [
-        { text: 'OK' }
-      ]
+      'Copied!',
+      'Transfer data has been copied to clipboard. Paste it into the doctor\'s desktop app.',
+      [{ text: 'OK' }]
     );
+  };
+
+  const handleViewJSON = () => {
+    setShowJSON(true);
+    setActiveView('json');
   };
 
   if (!patientData) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading patient data...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Patient Data Ready</Text>
-        <Text style={styles.info}>
-          Name: {patientData.patient.firstName} {patientData.patient.lastName}
+      {/* Header Card */}
+      <View style={styles.headerCard}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {patientData.patient.firstName[0]}{patientData.patient.lastName[0]}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.patientName}>
+          {patientData.patient.firstName} {patientData.patient.lastName}
         </Text>
-        <Text style={styles.info}>
-          Records: {patientData.records?.length || 0}
+        <Text style={styles.patientInfo}>
+          {patientData.patient.gender} • {patientData.patient.dateOfBirth}
         </Text>
-        <Text style={styles.info}>
-          Prescriptions: {patientData.prescriptions?.length || 0}
+        <Text style={styles.patientInfo}>
+          {patientData.patient.phoneNumber}
         </Text>
       </View>
 
+      {/* Data Summary Card */}
       <View style={styles.card}>
-        <Text style={styles.subtitle}>Transfer to Doctor</Text>
+        <Text style={styles.cardTitle}>📊 Your Medical Data</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{patientData.records?.length || 0}</Text>
+            <Text style={styles.statLabel}>Medical Records</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{patientData.prescriptions?.length || 0}</Text>
+            <Text style={styles.statLabel}>Prescriptions</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{patientData.appointments?.length || 0}</Text>
+            <Text style={styles.statLabel}>Appointments</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{patientData.labResults?.length || 0}</Text>
+            <Text style={styles.statLabel}>Lab Results</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Transfer Options */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🔄 Transfer to Doctor</Text>
         <Text style={styles.description}>
-          Generate a secure transfer code to share your medical data with your doctor
+          Share your medical data securely with your healthcare provider
         </Text>
         
-        <Button 
-          title="Generate Transfer Data" 
-          onPress={handleGenerateTransfer}
-          color="#667eea"
-        />
-
-        {showQR && (
-          <View style={styles.qrContainer}>
-            <Text style={styles.qrLabel}>Scan or Copy Data:</Text>
-            <View style={styles.qrCode}>
-              <QRCode
-                value={jsonData}
-                size={200}
-              />
+        {!showQR ? (
+          <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={handleGenerateTransfer}
+          >
+            <Text style={styles.primaryButtonText}>Generate Transfer Code</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.transferOptions}>
+            {/* Tab Navigation */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity 
+                style={[styles.tab, activeView === 'qr' && styles.activeTab]}
+                onPress={() => setActiveView('qr')}
+              >
+                <Text style={[styles.tabText, activeView === 'qr' && styles.activeTabText]}>
+                  QR Code
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeView === 'json' && styles.activeTab]}
+                onPress={handleViewJSON}
+              >
+                <Text style={[styles.tabText, activeView === 'json' && styles.activeTabText]}>
+                  Text Data
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Button 
-              title="View Transfer Data" 
-              onPress={handleCopyData}
-              color="#764ba2"
-            />
+
+            {/* QR Code View */}
+            {activeView === 'qr' && (
+              <View style={styles.qrContainer}>
+                <Text style={styles.instructionText}>
+                  Scan this QR code with the doctor's app
+                </Text>
+                <View style={styles.qrCodeWrapper}>
+                  <QRCode
+                    value={jsonData}
+                    size={220}
+                    backgroundColor="white"
+                  />
+                </View>
+                <TouchableOpacity 
+                  style={styles.secondaryButton}
+                  onPress={handleCopyData}
+                >
+                  <Text style={styles.secondaryButtonText}>📋 Copy Data Instead</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* JSON View */}
+            {activeView === 'json' && (
+              <View style={styles.jsonContainer}>
+                <Text style={styles.instructionText}>
+                  Copy this data and paste it into the doctor's app
+                </Text>
+                <ScrollView 
+                  style={styles.jsonScroll}
+                  nestedScrollEnabled={true}
+                >
+                  <Text style={styles.jsonText} selectable>
+                    {jsonData}
+                  </Text>
+                </ScrollView>
+                <TouchableOpacity 
+                  style={styles.primaryButton}
+                  onPress={handleCopyData}
+                >
+                  <Text style={styles.primaryButtonText}>📋 Copy to Clipboard</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={styles.resetButton}
+              onPress={() => {
+                setShowQR(false);
+                setShowJSON(false);
+                setActiveView('summary');
+              }}
+            >
+              <Text style={styles.resetButtonText}>← Back to Summary</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.warning}>⚠️ Privacy Notice</Text>
-        <Text style={styles.warningText}>
-          Your medical data is stored securely on this device. You cannot view it directly, 
-          but you can transfer it to authorized healthcare providers.
+      {/* Privacy Notice */}
+      <View style={styles.privacyCard}>
+        <Text style={styles.privacyIcon}>🔒</Text>
+        <Text style={styles.privacyTitle}>Privacy & Security</Text>
+        <Text style={styles.privacyText}>
+          • Your data is encrypted and stored only on this device{'\n'}
+          • You cannot view detailed medical records directly{'\n'}
+          • Only authorized doctors can access your information{'\n'}
+          • Transfer codes expire after use
         </Text>
       </View>
+
+      <View style={styles.spacer} />
     </ScrollView>
   );
 }
@@ -110,61 +221,232 @@ export default function DataTransferScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20
+    backgroundColor: '#f5f7fa'
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f7fa'
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666'
+  },
+  headerCard: {
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    backgroundColor: '#667eea',
+    padding: 30,
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  avatarContainer: {
+    marginBottom: 15
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white'
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white'
+  },
+  patientName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 5
+  },
+  patientInfo: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 3
   },
   card: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 20
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    marginHorizontal: 15,
     marginBottom: 15,
-    color: '#333'
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3
   },
-  subtitle: {
+  cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333'
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15
   },
-  info: {
-    fontSize: 14,
-    color: '#666',
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between'
+  },
+  statItem: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  statNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#667eea',
     marginBottom: 5
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center'
   },
   description: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 15
+    marginBottom: 20,
+    lineHeight: 20
   },
-  qrContainer: {
-    marginTop: 20,
-    alignItems: 'center'
-  },
-  qrLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10
-  },
-  qrCode: {
-    padding: 20,
-    backgroundColor: 'white',
+  primaryButton: {
+    backgroundColor: '#667eea',
+    padding: 16,
     borderRadius: 10,
-    marginBottom: 15
+    alignItems: 'center',
+    marginTop: 10
   },
-  warning: {
+  primaryButtonText: {
+    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ff9800',
-    marginBottom: 10
+    fontWeight: '600'
   },
-  warningText: {
+  secondaryButton: {
+    backgroundColor: '#f8f9fa',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  secondaryButtonText: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: '600'
+  },
+  resetButton: {
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 20
+  },
+  resetButtonText: {
+    color: '#666',
+    fontSize: 14
+  },
+  transferOptions: {
+    marginTop: 10
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 20
+  },
+  tab: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    borderRadius: 8
+  },
+  activeTab: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  tabText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20
+    fontWeight: '500'
+  },
+  activeTabText: {
+    color: '#667eea',
+    fontWeight: '600'
+  },
+  qrContainer: {
+    alignItems: 'center'
+  },
+  instructionText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20
+  },
+  qrCodeWrapper: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    marginBottom: 10
+  },
+  jsonContainer: {
+    marginTop: 10
+  },
+  jsonScroll: {
+    maxHeight: 300,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  jsonText: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: '#333',
+    lineHeight: 16
+  },
+  privacyCard: {
+    backgroundColor: '#fff3e0',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800'
+  },
+  privacyIcon: {
+    fontSize: 32,
+    marginBottom: 10,
+    textAlign: 'center'
+  },
+  privacyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#e65100',
+    marginBottom: 10,
+    textAlign: 'center'
+  },
+  privacyText: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 22
+  },
+  spacer: {
+    height: 30
   }
 });
