@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-// @ts-ignore
-import { v4 as uuidv4 } from 'uuid';
 import { savePatientData } from '../utils/storage';
 
-export default function SetupScreen({ navigation }: any) {
+// Simple UUID generator for React Native
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+interface SetupScreenProps {
+  navigation: any;
+}
+
+export default function SetupScreen({ navigation }: SetupScreenProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -19,7 +30,7 @@ export default function SetupScreen({ navigation }: any) {
     }
 
     const patient = {
-      id: uuidv4(),
+      id: generateUUID(),
       firstName,
       lastName,
       dateOfBirth,
@@ -37,10 +48,14 @@ export default function SetupScreen({ navigation }: any) {
       prescriptions: []
     };
 
-    await savePatientData(patientData);
-    Alert.alert('Success', 'Patient data saved securely', [
-      { text: 'OK', onPress: () => navigation.replace('Transfer') }
-    ]);
+    const saved = await savePatientData(patientData);
+    if (saved) {
+      Alert.alert('Success', 'Patient data saved securely', [
+        { text: 'OK', onPress: () => navigation.navigate('Transfer') }
+      ]);
+    } else {
+      Alert.alert('Error', 'Failed to save patient data. Please try again.');
+    }
   };
 
   return (
