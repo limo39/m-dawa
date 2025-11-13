@@ -1,10 +1,13 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import SetupScreen from './src/screens/SetupScreen';
 import DataTransferScreen from './src/screens/DataTransferScreen';
+import OTPScreen from './src/screens/OTPScreen';
 import { loadPatientData } from './src/utils/storage';
+import { Text } from 'react-native';
 
 // Polyfill for TextEncoder/TextDecoder (needed for QR code)
 import { TextEncoder, TextDecoder } from 'text-encoding';
@@ -16,6 +19,7 @@ if (typeof global.TextDecoder === 'undefined') {
 }
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 export default function App() {
   const [hasPatient, setHasPatient] = useState(false);
@@ -32,13 +36,47 @@ export default function App() {
   };
 
   if (loading) {
-    return null; // or a loading screen
+    return null;
   }
+
+  // Main tabs for authenticated users
+  const MainTabs = () => (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#667eea',
+        tabBarInactiveTintColor: '#999',
+        tabBarStyle: {
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60
+        }
+      }}
+    >
+      <Tab.Screen 
+        name="OTP" 
+        component={OTPScreen}
+        options={{
+          title: 'Access Code',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🔐</Text>,
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
+        name="Transfer" 
+        component={DataTransferScreen}
+        options={{
+          title: 'Transfer Data',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🔄</Text>,
+          headerShown: false
+        }}
+      />
+    </Tab.Navigator>
+  );
 
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName={hasPatient ? 'Transfer' : 'Setup'}
+        initialRouteName={hasPatient ? 'Main' : 'Setup'}
         screenOptions={{ headerShown: true }}
       >
         <Stack.Screen 
@@ -49,11 +87,10 @@ export default function App() {
           }}
         />
         <Stack.Screen 
-          name="Transfer" 
-          component={DataTransferScreen}
+          name="Main" 
+          component={MainTabs}
           options={{ 
-            title: 'M-dawa',
-            headerLeft: () => null,
+            headerShown: false,
             gestureEnabled: false
           }}
         />

@@ -22,14 +22,24 @@ export default function DataTransferScreen() {
   const handleGenerateTransfer = () => {
     if (!patientData) return;
 
+    // Generate OTP for this transfer
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
+
     const transferData = {
+      otp,
+      patientId: patientData.patient.id,
+      patientName: `${patientData.patient.firstName} ${patientData.patient.lastName}`,
       patient: patientData.patient,
       records: patientData.records || [],
       prescriptions: patientData.prescriptions || [],
       appointments: patientData.appointments || [],
       labResults: patientData.labResults || [],
       vitals: patientData.vitals || [],
-      timestamp: new Date(),
+      generatedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      timestamp: now,
       signature: 'encrypted_signature_here'
     };
 
@@ -37,6 +47,12 @@ export default function DataTransferScreen() {
     setJsonData(json);
     setShowQR(true);
     setActiveView('qr');
+    
+    Alert.alert(
+      'Transfer Code Generated',
+      `OTP: ${otp}\n\nShare this 6-digit code with your doctor along with the QR code or JSON data.`,
+      [{ text: 'OK' }]
+    );
   };
 
   const handleCopyData = () => {

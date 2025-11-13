@@ -51,7 +51,7 @@ export default function SetupScreen({ navigation }: SetupScreenProps) {
     const saved = await savePatientData(patientData);
     if (saved) {
       Alert.alert('Success', 'Patient data saved securely', [
-        { text: 'OK', onPress: () => navigation.navigate('Transfer') }
+        { text: 'OK', onPress: () => navigation.navigate('Main') }
       ]);
     } else {
       Alert.alert('Error', 'Failed to save patient data. Please try again.');
