@@ -1,12 +1,9 @@
-// OTP Generation and Management for M-dawa
+// OTP Generation and Management for Mobile App
 
 export interface OTPData {
-  code: string;
-  patientId: string;
-  patientName: string;
-  generatedAt: Date;
+  otp: string;
   expiresAt: Date;
-  used: boolean;
+  createdAt: Date;
 }
 
 // Generate a 6-digit OTP
@@ -14,35 +11,56 @@ export const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Check if OTP is expired (valid for 15 minutes)
-export const isOTPExpired = (expiresAt: Date): boolean => {
-  return new Date() > new Date(expiresAt);
-};
+// Store OTP with patient data (in-memory for now, could use AsyncStorage)
+let currentOTP: OTPData | null = null;
 
-// Create OTP data with expiration
-export const createOTPData = (patientId: string, patientName: string): OTPData => {
+export const createOTP = (): OTPData => {
+  const otp = generateOTP();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
-
-  return {
-    code: generateOTP(),
-    patientId,
-    patientName,
-    generatedAt: now,
+  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes expiry
+  
+  currentOTP = {
+    otp,
     expiresAt,
-    used: false
+    createdAt: now
   };
+  
+  return currentOTP;
 };
 
-// Format time remaining
-export const getTimeRemaining = (expiresAt: Date): string => {
+export const getCurrentOTP = (): OTPData | null => {
+  if (!currentOTP) return null;
+  
+  // Check if expired
+  if (new Date() > currentOTP.expiresAt) {
+    currentOTP = null;
+    return null;
+  }
+  
+  return currentOTP;
+};
+
+export const clearOTP = (): void => {
+  currentOTP = null;
+};
+
+export const isOTPValid = (otp: string): boolean => {
+  const current = getCurrentOTP();
+  if (!current) return false;
+  return current.otp === otp;
+};
+
+export const getOTPTimeRemaining = (): number => {
+  const current = getCurrentOTP();
+  if (!current) return 0;
+  
   const now = new Date();
-  const diff = new Date(expiresAt).getTime() - now.getTime();
-  
-  if (diff <= 0) return 'Expired';
-  
-  const minutes = Math.floor(diff / 60000);
-  const seconds = Math.floor((diff % 60000) / 1000);
-  
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const remaining = current.expiresAt.getTime() - now.getTime();
+  return Math.max(0, Math.floor(remaining / 1000)); // seconds
+};
+
+export const formatTimeRemaining = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 };

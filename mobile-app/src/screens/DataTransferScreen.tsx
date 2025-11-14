@@ -2,17 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
+import { createOTP, getCurrentOTP, clearOTP, getOTPTimeRemaining, formatTimeRemaining } from '../utils/otp';
 
 export default function DataTransferScreen() {
   const [patientData, setPatientData] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
   const [showJSON, setShowJSON] = useState(false);
   const [jsonData, setJsonData] = useState('');
-  const [activeView, setActiveView] = useState<'summary' | 'qr' | 'json'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'qr' | 'json' | 'otp'>('summary');
+  const [currentOTP, setCurrentOTP] = useState<string | null>(null);
+  const [otpTimeRemaining, setOtpTimeRemaining] = useState<number>(0);
 
   useEffect(() => {
     loadData();
-  }, []);
+    
+    // Check for existing OTP
+    const existingOTP = getCurrentOTP();
+    if (existingOTP) {
+      setCurrentOTP(existingOTP.otp);
+      setOtpTimeRemaining(getOTPTimeRemaining());
+    }
+    
+    // Update timer every second
+    const timer = setInterval(() => {
+      const remaining = getOTPTimeRemaining();
+      setOtpTimeRemaining(remaining);
+      
+      if (remaining === 0 && currentOTP) {
+        setCurrentOTP(null);
+        clearOTP();
+      }
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [currentOTP]);
 
   const loadData = async () => {
     const data = await loadPatientData();
@@ -69,6 +92,29 @@ export default function DataTransferScreen() {
     setActiveView('json');
   };
 
+  const handleGenerateOTP = () => {
+    if (!patientData) return;
+
+    const otpData = createOTP();
+    setCurrentOTP(otpData.otp);
+    setOtpTimeRemaining(getOTPTimeRemaining());
+    setActiveView('otp');
+    setShowQR(true);
+
+    Alert.alert(
+      'OTP Generated!',
+      `Share this code with your doctor: ${otpData.otp}\n\nValid for 10 minutes.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleCopyOTP = () => {
+    if (currentOTP) {
+      Clipboard.setString(currentOTP);
+      Alert.alert('Copied!', 'OTP copied to clipboard');
+    }
+  };
+
   if (!patientData) {
     return (
       <View style={styles.loadingContainer}>
@@ -122,19 +168,55 @@ export default function DataTransferScreen() {
         </View>
       </View>
 
-      {/* Transfer Options */}
+      {/* OTP Transfer (New Method) */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🔄 Transfer to Doctor</Text>
+        <Text style={styles.cardTitle}>🔐 Secure OTP Transfer</Text>
         <Text style={styles.description}>
-          Share your medical data securely with your healthcare provider
+          Generate a one-time password for your doctor to access your records
+        </Text>
+        
+        {!currentOTP ? (
+          <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={handleGenerateOTP}
+          >
+            <Text style={styles.primaryButtonText}>Generate OTP</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.otpDisplay}>
+            <Text style={styles.otpLabel}>Your One-Time Password:</Text>
+            <View style={styles.otpCodeContainer}>
+              <Text style={styles.otpCode}>{currentOTP}</Text>
+            </View>
+            <Text style={styles.otpTimer}>
+              ⏱️ Expires in: {formatTimeRemaining(otpTimeRemaining)}
+            </Text>
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={handleCopyOTP}
+            >
+              <Text style={styles.secondaryButtonText}>📋 Copy OTP</Text>
+            </TouchableOpacity>
+            <Text style={styles.otpInstructions}>
+              Share this code with your doctor. They will enter it on their system to access your records.
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Transfer Options (Alternative Method) */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🔄 Alternative: QR/JSON Transfer</Text>
+        <Text style={styles.description}>
+          Or use QR code / JSON data transfer method
         </Text>
         
         {!showQR ? (
           <TouchableOpacity 
-            style={styles.primaryButton}
+            style={styles.secondaryButton}
             onPress={handleGenerateTransfer}
           >
-            <Text style={styles.primaryButtonText}>Generate Transfer Code</Text>
+            <Text style={styles.secondaryButtonText}>Generate Transfer Code</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.transferOptions}>
@@ -464,5 +546,48 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 30
+  },
+  otpDisplay: {
+    alignItems: 'center',
+    paddingVertical: 20
+  },
+  otpLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    fontWeight: '600'
+  },
+  otpCodeContainer: {
+    backgroundColor: '#667eea',
+    paddingHorizontal: 30,
+    paddingVertical: 20,
+    borderRadius: 15,
+    marginBottom: 15,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5
+  },
+  otpCode: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 8,
+    fontFamily: 'monospace'
+  },
+  otpTimer: {
+    fontSize: 16,
+    color: '#ff9800',
+    fontWeight: '600',
+    marginBottom: 20
+  },
+  otpInstructions: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 15,
+    lineHeight: 20,
+    paddingHorizontal: 20
   }
 });

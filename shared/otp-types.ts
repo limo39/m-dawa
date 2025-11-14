@@ -1,21 +1,25 @@
-// Shared OTP types for M-dawa system
+// OTP System Types
 
-export interface OTPTransferData {
+export interface OTPSession {
   otp: string;
   patientId: string;
-  patientName: string;
-  patient: any;
-  records: any[];
-  prescriptions: any[];
-  appointments?: any[];
-  labResults?: any[];
-  vitals?: any[];
-  generatedAt: string;
-  expiresAt: string;
+  patientData: any;
+  expiresAt: Date;
+  createdAt: Date;
+  used: boolean;
 }
 
-export interface OTPVerificationResult {
+export interface OTPGenerateRequest {
+  patientId: string;
+  patientData: any;
+}
+
+export interface OTPVerifyRequest {
+  otp: string;
+}
+
+export interface OTPVerifyResponse {
   success: boolean;
-  data?: OTPTransferData;
+  patientData?: any;
   error?: string;
 }

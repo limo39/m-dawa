@@ -568,3 +568,94 @@ body {
   background: #ddd;
   border-radius: 4px;
 }
+
+
+/* OTP Verification Styles */
+.otp-modal {
+  max-width: 500px;
+}
+
+.otp-description {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.otp-input-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.otp-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 20px;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 12px;
+  border: 3px solid #667eea;
+  border-radius: 10px;
+  font-family: monospace;
+  background: #f8f9fa;
+}
+
+.otp-input:focus {
+  outline: none;
+  border-color: #5568d3;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.otp-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.otp-info {
+  background: #e3f2fd;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.otp-info p {
+  margin: 5px 0;
+  color: #1565c0;
+  font-size: 14px;
+}
+
+.otp-help {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.otp-help p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.otp-help strong {
+  color: #333;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
