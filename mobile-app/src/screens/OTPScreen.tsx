@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Clipboard } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
 import { createOTPData, getTimeRemaining, OTPData } from '../utils/otp';
 
@@ -7,6 +8,7 @@ export default function OTPScreen() {
   const [patientData, setPatientData] = useState<any>(null);
   const [otpData, setOtpData] = useState<OTPData | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [qrData, setQrData] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -32,7 +34,7 @@ export default function OTPScreen() {
     setPatientData(data);
   };
 
-  const handleGenerateOTP = () => {
+  const handleGenerateQR = () => {
     if (!patientData) return;
 
     const newOTP = createOTPData(
@@ -40,25 +42,53 @@ export default function OTPScreen() {
       `${patientData.patient.firstName} ${patientData.patient.lastName}`
     );
 
+    // Create transfer data with all patient information
+    const transferData = {
+      otp: newOTP.code,
+      patientId: patientData.patient.id,
+      patientName: `${patientData.patient.firstName} ${patientData.patient.lastName}`,
+      patient: patientData.patient,
+      records: patientData.records || [],
+      prescriptions: patientData.prescriptions || [],
+      appointments: patientData.appointments || [],
+      labResults: patientData.labResults || [],
+      vitals: patientData.vitals || [],
+      generatedAt: new Date().toISOString(),
+      expiresAt: newOTP.expiresAt.toISOString(),
+      signature: 'encrypted_signature_here'
+    };
+
     setOtpData(newOTP);
+    setQrData(JSON.stringify(transferData));
     setTimeRemaining(getTimeRemaining(newOTP.expiresAt));
 
     Alert.alert(
-      'OTP Generated',
-      'Share this code with your doctor to grant access to your medical records.',
+      'QR Code Generated',
+      `Verification Code: ${newOTP.code}\n\nShow this QR code to your doctor to share your medical records.`,
       [{ text: 'OK' }]
     );
   };
 
-  const handleRefreshOTP = () => {
+  const handleRefreshQR = () => {
     Alert.alert(
-      'Generate New OTP?',
+      'Generate New QR Code?',
       'This will invalidate the current code. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Generate', onPress: handleGenerateOTP }
+        { text: 'Generate', onPress: handleGenerateQR }
       ]
     );
+  };
+
+  const handleCopyData = () => {
+    if (qrData) {
+      Clipboard.setString(qrData);
+      Alert.alert(
+        'Copied!',
+        'QR code data has been copied to clipboard. You can paste it into the doctor\'s app if scanning doesn\'t work.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   if (!patientData) {
@@ -70,13 +100,13 @@ export default function OTPScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>🔐</Text>
-        <Text style={styles.headerTitle}>Access Control</Text>
+        <Text style={styles.headerIcon}>📱</Text>
+        <Text style={styles.headerTitle}>Share Medical Records</Text>
         <Text style={styles.headerSubtitle}>
-          Generate a secure code for your doctor
+          Generate a secure QR code for your doctor
         </Text>
       </View>
 
@@ -97,16 +127,29 @@ export default function OTPScreen() {
         </View>
       </View>
 
-      {/* OTP Display */}
-      {otpData ? (
-        <View style={styles.otpCard}>
-          <Text style={styles.otpLabel}>Your Access Code</Text>
-          <View style={styles.otpDisplay}>
-            <Text style={styles.otpCode}>{otpData.code}</Text>
+      {/* QR Code Display */}
+      {otpData && qrData ? (
+        <View style={styles.qrCard}>
+          <Text style={styles.qrLabel}>Show this to your doctor</Text>
+          
+          {/* Verification Code Badge */}
+          <View style={styles.verificationBadge}>
+            <Text style={styles.verificationLabel}>Verification Code</Text>
+            <Text style={styles.verificationCode}>{otpData.code}</Text>
+          </View>
+
+          {/* QR Code */}
+          <View style={styles.qrCodeWrapper}>
+            <QRCode
+              value={qrData}
+              size={250}
+              backgroundColor="white"
+            />
           </View>
           
+          {/* Timer */}
           <View style={styles.timerContainer}>
-            <Text style={styles.timerLabel}>Time Remaining:</Text>
+            <Text style={styles.timerLabel}>⏱️ Expires in:</Text>
             <Text style={[
               styles.timerValue,
               timeRemaining === 'Expired' && styles.timerExpired
@@ -115,36 +158,49 @@ export default function OTPScreen() {
             </Text>
           </View>
 
-          <View style={styles.statusContainer}>
-            <View style={[
-              styles.statusBadge,
-              timeRemaining === 'Expired' ? styles.statusExpired : styles.statusActive
-            ]}>
-              <Text style={styles.statusText}>
-                {timeRemaining === 'Expired' ? '⏰ Expired' : '✓ Active'}
-              </Text>
-            </View>
+          {/* Status Badge */}
+          <View style={[
+            styles.statusBadge,
+            timeRemaining === 'Expired' ? styles.statusExpired : styles.statusActive
+          ]}>
+            <Text style={styles.statusText}>
+              {timeRemaining === 'Expired' ? '⏰ Expired' : '✓ Active'}
+            </Text>
           </View>
 
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            onPress={handleRefreshOTP}
-          >
-            <Text style={styles.secondaryButtonText}>🔄 Generate New Code</Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity 
+              style={styles.copyButton}
+              onPress={handleCopyData}
+            >
+              <Text style={styles.copyButtonText}>📋 Copy Data</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={handleRefreshQR}
+            >
+              <Text style={styles.refreshButtonText}>🔄 New Code</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.helpText}>
+            If scanning doesn't work, tap "Copy Data" and paste it into the doctor's app manually.
+          </Text>
         </View>
       ) : (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>🔒</Text>
-          <Text style={styles.emptyTitle}>No Active Code</Text>
+          <Text style={styles.emptyIcon}>📱</Text>
+          <Text style={styles.emptyTitle}>No Active QR Code</Text>
           <Text style={styles.emptyText}>
-            Generate a secure 6-digit code to share with your doctor
+            Generate a secure QR code to share your medical records with your doctor
           </Text>
           <TouchableOpacity 
             style={styles.primaryButton}
-            onPress={handleGenerateOTP}
+            onPress={handleGenerateQR}
           >
-            <Text style={styles.primaryButtonText}>Generate Access Code</Text>
+            <Text style={styles.primaryButtonText}>Generate QR Code</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -153,27 +209,29 @@ export default function OTPScreen() {
       <View style={styles.instructionsCard}>
         <Text style={styles.instructionsTitle}>📋 How to Use</Text>
         <Text style={styles.instructionText}>
-          1. Generate an access code{'\n'}
-          2. Share the 6-digit code with your doctor{'\n'}
-          3. Doctor enters the code in their app{'\n'}
+          1. Tap "Generate QR Code" button{'\n'}
+          2. Show the QR code to your doctor{'\n'}
+          3. Doctor scans it with their app{'\n'}
           4. Your medical data is securely transferred{'\n'}
-          5. Code expires after 15 minutes or one use
+          5. QR code expires after 15 minutes
         </Text>
       </View>
 
       {/* Security Notice */}
       <View style={styles.securityCard}>
         <Text style={styles.securityIcon}>🔒</Text>
-        <Text style={styles.securityTitle}>Security Features</Text>
+        <Text style={styles.securityTitle}>Security & Privacy</Text>
         <Text style={styles.securityText}>
-          • Code expires in 15 minutes{'\n'}
+          • QR code expires in 15 minutes{'\n'}
           • Single-use only{'\n'}
-          • Cannot be reused{'\n'}
+          • Works offline (no internet needed){'\n'}
           • Your data stays encrypted{'\n'}
-          • You control access
+          • You control all sharing
         </Text>
       </View>
-    </View>
+
+      <View style={styles.spacer} />
+    </ScrollView>
   );
 }
 
@@ -244,7 +302,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333'
   },
-  otpCard: {
+  qrCard: {
     backgroundColor: 'white',
     marginHorizontal: 15,
     marginTop: 20,
@@ -257,31 +315,59 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: 'center'
   },
-  otpLabel: {
-    fontSize: 16,
+  qrLabel: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#666',
-    marginBottom: 15
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center'
   },
-  otpDisplay: {
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 20,
-    paddingHorizontal: 40,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: '#667eea',
-    marginBottom: 20
+  verificationBadge: {
+    backgroundColor: '#667eea',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 12,
+    marginBottom: 25,
+    alignItems: 'center',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4
   },
-  otpCode: {
-    fontSize: 48,
+  verificationLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 5
+  },
+  verificationCode: {
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#667eea',
-    letterSpacing: 8
+    color: 'white',
+    letterSpacing: 6,
+    fontFamily: 'monospace'
+  },
+  qrCodeWrapper: {
+    padding: 25,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#667eea',
+    marginBottom: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15
+    marginBottom: 20,
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10
   },
   timerLabel: {
     fontSize: 14,
@@ -296,13 +382,11 @@ const styles = StyleSheet.create({
   timerExpired: {
     color: '#f44336'
   },
-  statusContainer: {
-    marginBottom: 20
-  },
   statusBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+    marginBottom: 20
   },
   statusActive: {
     backgroundColor: '#e8f5e9'
@@ -329,21 +413,22 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   emptyIcon: {
-    fontSize: 60,
-    marginBottom: 15
+    fontSize: 80,
+    marginBottom: 20
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 10
+    marginBottom: 12
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 25,
-    lineHeight: 20
+    marginBottom: 30,
+    lineHeight: 22,
+    paddingHorizontal: 10
   },
   primaryButton: {
     backgroundColor: '#667eea',
@@ -358,20 +443,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600'
   },
-  secondaryButton: {
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    marginBottom: 15
+  },
+  copyButton: {
+    flex: 1,
+    backgroundColor: '#4caf50',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center'
+  },
+  copyButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600'
+  },
+  refreshButton: {
+    flex: 1,
     backgroundColor: '#f8f9fa',
     paddingVertical: 14,
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    width: '100%',
     alignItems: 'center'
   },
-  secondaryButtonText: {
+  refreshButtonText: {
     color: '#667eea',
     fontSize: 14,
     fontWeight: '600'
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 20
   },
   instructionsCard: {
     backgroundColor: '#e3f2fd',
@@ -419,5 +530,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     lineHeight: 22
+  },
+  spacer: {
+    height: 30
   }
 });

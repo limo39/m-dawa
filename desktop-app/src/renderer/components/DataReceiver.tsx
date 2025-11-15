@@ -11,6 +11,18 @@ const DataReceiver: React.FC<DataReceiverProps> = ({ onClose }) => {
   const handleReceive = async () => {
     try {
       const data = JSON.parse(jsonData);
+      
+      // Store OTP session if OTP is present
+      if (data.otp && data.expiresAt) {
+        const otpSession = {
+          otp: data.otp,
+          patientData: data,
+          expiresAt: data.expiresAt,
+          used: false
+        };
+        localStorage.setItem(`mdawa_otp_${data.otp}`, JSON.stringify(otpSession));
+      }
+      
       const result = await window.electronAPI.transfer.receive(data);
       
       if (result.success) {

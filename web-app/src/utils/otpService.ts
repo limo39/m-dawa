@@ -17,9 +17,6 @@ export const verifyOTP = async (otp: string): Promise<{ success: boolean; patien
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  // In production, this would call a backend API
-  // For demo, we'll check against a hardcoded OTP or localStorage
-  
   // Check if OTP matches expected format (6 digits)
   if (!/^\d{6}$/.test(otp)) {
     return {
@@ -28,30 +25,39 @@ export const verifyOTP = async (otp: string): Promise<{ success: boolean; patien
     };
   }
   
-  // For demo purposes, accept any 6-digit OTP and return mock data
-  // In production, this would verify against the backend
+  // Check localStorage for OTP sessions (stored when QR/JSON is scanned)
+  const sessions = getOTPSessions();
+  const session = sessions[otp];
+  
+  if (!session) {
+    return {
+      success: false,
+      error: 'OTP not found. Please use QR code or JSON transfer first, then enter the OTP.'
+    };
+  }
+  
+  // Check if expired
+  if (new Date(session.expiresAt) < new Date()) {
+    return {
+      success: false,
+      error: 'OTP has expired. Please generate a new one.'
+    };
+  }
+  
+  // Check if already used
+  if (session.used) {
+    return {
+      success: false,
+      error: 'OTP has already been used.'
+    };
+  }
+  
+  // Mark as used
+  markOTPAsUsed(otp);
   
   return {
     success: true,
-    patientData: {
-      patient: {
-        id: 'otp-patient-' + otp,
-        firstName: 'OTP',
-        lastName: 'Patient',
-        dateOfBirth: '1990-01-01',
-        gender: 'male',
-        phoneNumber: '+1234567890',
-        bloodType: 'O+',
-        allergies: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      records: [],
-      prescriptions: [],
-      appointments: [],
-      labResults: [],
-      vitals: []
-    }
+    patientData: session.patientData
   };
 };
 

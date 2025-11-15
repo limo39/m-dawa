@@ -2,40 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
-import { createOTP, getCurrentOTP, clearOTP, getOTPTimeRemaining, formatTimeRemaining } from '../utils/otp';
 
 export default function DataTransferScreen() {
   const [patientData, setPatientData] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
-  const [showJSON, setShowJSON] = useState(false);
   const [jsonData, setJsonData] = useState('');
-  const [activeView, setActiveView] = useState<'summary' | 'qr' | 'json' | 'otp'>('summary');
   const [currentOTP, setCurrentOTP] = useState<string | null>(null);
-  const [otpTimeRemaining, setOtpTimeRemaining] = useState<number>(0);
 
   useEffect(() => {
     loadData();
-    
-    // Check for existing OTP
-    const existingOTP = getCurrentOTP();
-    if (existingOTP) {
-      setCurrentOTP(existingOTP.otp);
-      setOtpTimeRemaining(getOTPTimeRemaining());
-    }
-    
-    // Update timer every second
-    const timer = setInterval(() => {
-      const remaining = getOTPTimeRemaining();
-      setOtpTimeRemaining(remaining);
-      
-      if (remaining === 0 && currentOTP) {
-        setCurrentOTP(null);
-        clearOTP();
-      }
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [currentOTP]);
+  }, []);
 
   const loadData = async () => {
     const data = await loadPatientData();
@@ -66,52 +42,26 @@ export default function DataTransferScreen() {
       signature: 'encrypted_signature_here'
     };
 
-    const json = JSON.stringify(transferData, null, 2);
+    const json = JSON.stringify(transferData);
     setJsonData(json);
     setShowQR(true);
-    setActiveView('qr');
+    setCurrentOTP(otp);
     
     Alert.alert(
-      'Transfer Code Generated',
-      `OTP: ${otp}\n\nShare this 6-digit code with your doctor along with the QR code or JSON data.`,
+      'QR Code Ready',
+      `Verification Code: ${otp}\n\nShow this QR code to your doctor to transfer your medical records.`,
       [{ text: 'OK' }]
     );
   };
 
   const handleCopyData = () => {
-    Clipboard.setString(jsonData);
-    Alert.alert(
-      'Copied!',
-      'Transfer data has been copied to clipboard. Paste it into the doctor\'s desktop app.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleViewJSON = () => {
-    setShowJSON(true);
-    setActiveView('json');
-  };
-
-  const handleGenerateOTP = () => {
-    if (!patientData) return;
-
-    const otpData = createOTP();
-    setCurrentOTP(otpData.otp);
-    setOtpTimeRemaining(getOTPTimeRemaining());
-    setActiveView('otp');
-    setShowQR(true);
-
-    Alert.alert(
-      'OTP Generated!',
-      `Share this code with your doctor: ${otpData.otp}\n\nValid for 10 minutes.`,
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleCopyOTP = () => {
-    if (currentOTP) {
-      Clipboard.setString(currentOTP);
-      Alert.alert('Copied!', 'OTP copied to clipboard');
+    if (jsonData) {
+      Clipboard.setString(jsonData);
+      Alert.alert(
+        'Copied!',
+        'Transfer data copied to clipboard. You can paste it into the doctor\'s app if scanning doesn\'t work.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -168,133 +118,75 @@ export default function DataTransferScreen() {
         </View>
       </View>
 
-      {/* OTP Transfer (New Method) */}
+      {/* QR Code Transfer */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🔐 Secure OTP Transfer</Text>
+        <Text style={styles.cardTitle}>📱 Transfer Medical Records</Text>
         <Text style={styles.description}>
-          Generate a one-time password for your doctor to access your records
-        </Text>
-        
-        {!currentOTP ? (
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={handleGenerateOTP}
-          >
-            <Text style={styles.primaryButtonText}>Generate OTP</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.otpDisplay}>
-            <Text style={styles.otpLabel}>Your One-Time Password:</Text>
-            <View style={styles.otpCodeContainer}>
-              <Text style={styles.otpCode}>{currentOTP}</Text>
-            </View>
-            <Text style={styles.otpTimer}>
-              ⏱️ Expires in: {formatTimeRemaining(otpTimeRemaining)}
-            </Text>
-            <TouchableOpacity 
-              style={styles.secondaryButton}
-              onPress={handleCopyOTP}
-            >
-              <Text style={styles.secondaryButtonText}>📋 Copy OTP</Text>
-            </TouchableOpacity>
-            <Text style={styles.otpInstructions}>
-              Share this code with your doctor. They will enter it on their system to access your records.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Transfer Options (Alternative Method) */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🔄 Alternative: QR/JSON Transfer</Text>
-        <Text style={styles.description}>
-          Or use QR code / JSON data transfer method
+          Generate a secure QR code to share your medical records with your doctor
         </Text>
         
         {!showQR ? (
           <TouchableOpacity 
-            style={styles.secondaryButton}
+            style={styles.primaryButton}
             onPress={handleGenerateTransfer}
           >
-            <Text style={styles.secondaryButtonText}>Generate Transfer Code</Text>
+            <Text style={styles.primaryButtonText}>Generate QR Code</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.transferOptions}>
-            {/* Tab Navigation */}
-            <View style={styles.tabContainer}>
+          <View style={styles.qrContainer}>
+            <Text style={styles.instructionText}>
+              Show this QR code to your doctor
+            </Text>
+            
+            {/* Verification Code Display */}
+            {currentOTP && (
+              <View style={styles.otpBadge}>
+                <Text style={styles.otpBadgeLabel}>Verification Code:</Text>
+                <Text style={styles.otpBadgeCode}>{currentOTP}</Text>
+              </View>
+            )}
+            
+            {/* QR Code */}
+            <View style={styles.qrCodeWrapper}>
+              <QRCode
+                value={jsonData}
+                size={250}
+                backgroundColor="white"
+              />
+            </View>
+            
+            <View style={styles.qrInstructions}>
+              <Text style={styles.qrInstructionTitle}>📋 Instructions:</Text>
+              <Text style={styles.qrInstructionText}>
+                1. Doctor opens their app{'\n'}
+                2. Doctor clicks "Scan QR Code"{'\n'}
+                3. Doctor scans this code{'\n'}
+                4. Your records are transferred securely
+              </Text>
+            </View>
+
+            <View style={styles.actionButtons}>
               <TouchableOpacity 
-                style={[styles.tab, activeView === 'qr' && styles.activeTab]}
-                onPress={() => setActiveView('qr')}
+                style={styles.copyDataButton}
+                onPress={handleCopyData}
               >
-                <Text style={[styles.tabText, activeView === 'qr' && styles.activeTabText]}>
-                  QR Code
-                </Text>
+                <Text style={styles.copyDataButtonText}>📋 Copy Data</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={[styles.tab, activeView === 'json' && styles.activeTab]}
-                onPress={handleViewJSON}
+                style={styles.resetButton}
+                onPress={() => {
+                  setShowQR(false);
+                  setCurrentOTP(null);
+                }}
               >
-                <Text style={[styles.tabText, activeView === 'json' && styles.activeTabText]}>
-                  Text Data
-                </Text>
+                <Text style={styles.resetButtonText}>🔄 New Code</Text>
               </TouchableOpacity>
             </View>
 
-            {/* QR Code View */}
-            {activeView === 'qr' && (
-              <View style={styles.qrContainer}>
-                <Text style={styles.instructionText}>
-                  Scan this QR code with the doctor's app
-                </Text>
-                <View style={styles.qrCodeWrapper}>
-                  <QRCode
-                    value={jsonData}
-                    size={220}
-                    backgroundColor="white"
-                  />
-                </View>
-                <TouchableOpacity 
-                  style={styles.secondaryButton}
-                  onPress={handleCopyData}
-                >
-                  <Text style={styles.secondaryButtonText}>📋 Copy Data Instead</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* JSON View */}
-            {activeView === 'json' && (
-              <View style={styles.jsonContainer}>
-                <Text style={styles.instructionText}>
-                  Copy this data and paste it into the doctor's app
-                </Text>
-                <ScrollView 
-                  style={styles.jsonScroll}
-                  nestedScrollEnabled={true}
-                >
-                  <Text style={styles.jsonText} selectable>
-                    {jsonData}
-                  </Text>
-                </ScrollView>
-                <TouchableOpacity 
-                  style={styles.primaryButton}
-                  onPress={handleCopyData}
-                >
-                  <Text style={styles.primaryButtonText}>📋 Copy to Clipboard</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <TouchableOpacity 
-              style={styles.resetButton}
-              onPress={() => {
-                setShowQR(false);
-                setShowJSON(false);
-                setActiveView('summary');
-              }}
-            >
-              <Text style={styles.resetButtonText}>← Back to Summary</Text>
-            </TouchableOpacity>
+            <Text style={styles.scanHelpText}>
+              If scanning doesn't work, use "Copy Data" and paste manually
+            </Text>
           </View>
         )}
       </View>
@@ -441,82 +333,115 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600'
   },
-  resetButton: {
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 20
-  },
-  resetButtonText: {
-    color: '#666',
-    fontSize: 14
-  },
-  transferOptions: {
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
     marginTop: 10
   },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 20
-  },
-  tab: {
+  copyDataButton: {
     flex: 1,
-    padding: 12,
-    alignItems: 'center',
-    borderRadius: 8
-  },
-  activeTab: {
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2
-  },
-  tabText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500'
-  },
-  activeTabText: {
-    color: '#667eea',
-    fontWeight: '600'
-  },
-  qrContainer: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     alignItems: 'center'
   },
-  instructionText: {
+  copyDataButtonText: {
+    color: 'white',
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600'
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center'
+  },
+  resetButtonText: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: '600'
+  },
+  scanHelpText: {
+    fontSize: 12,
+    color: '#999',
     textAlign: 'center',
-    marginBottom: 20
+    marginTop: 15,
+    lineHeight: 18
+  },
+  qrContainer: {
+    alignItems: 'center',
+    paddingVertical: 10
+  },
+  instructionText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '600'
+  },
+  otpBadge: {
+    backgroundColor: '#667eea',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4
+  },
+  otpBadgeLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 5
+  },
+  otpBadgeCode: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 6,
+    fontFamily: 'monospace'
   },
   qrCodeWrapper: {
-    padding: 20,
+    padding: 25,
     backgroundColor: 'white',
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#667eea',
+    marginBottom: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6
+  },
+  qrInstructions: {
+    backgroundColor: '#f0f4ff',
+    padding: 20,
+    borderRadius: 12,
+    width: '100%',
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#667eea'
+  },
+  qrInstructionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#667eea',
     marginBottom: 10
   },
-  jsonContainer: {
-    marginTop: 10
-  },
-  jsonScroll: {
-    maxHeight: 300,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#e0e0e0'
-  },
-  jsonText: {
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: '#333',
-    lineHeight: 16
+  qrInstructionText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 22
   },
   privacyCard: {
     backgroundColor: '#fff3e0',
@@ -547,47 +472,5 @@ const styles = StyleSheet.create({
   spacer: {
     height: 30
   },
-  otpDisplay: {
-    alignItems: 'center',
-    paddingVertical: 20
-  },
-  otpLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
-    fontWeight: '600'
-  },
-  otpCodeContainer: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 30,
-    paddingVertical: 20,
-    borderRadius: 15,
-    marginBottom: 15,
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5
-  },
-  otpCode: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'white',
-    letterSpacing: 8,
-    fontFamily: 'monospace'
-  },
-  otpTimer: {
-    fontSize: 16,
-    color: '#ff9800',
-    fontWeight: '600',
-    marginBottom: 20
-  },
-  otpInstructions: {
-    fontSize: 13,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 15,
-    lineHeight: 20,
-    paddingHorizontal: 20
-  }
+
 });

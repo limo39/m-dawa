@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PatientList from './PatientList';
 import PatientDetails from './PatientDetails';
-import DataReceiver from './DataReceiver';
-import OTPVerification from './OTPVerification';
+import QRScanner from './QRScanner';
+import { savePatientData } from '../utils/storage';
 
 interface DashboardProps {
   user: any;
@@ -11,8 +11,34 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [showReceiver, setShowReceiver] = useState(false);
-  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanStatus, setScanStatus] = useState<string>('');
+
+  const handleQRScan = async (data: string) => {
+    try {
+      const patientData = JSON.parse(data);
+      
+      // Validate the data structure
+      if (!patientData.patient || !patientData.otp) {
+        setScanStatus('Invalid QR code data');
+        return;
+      }
+
+      // Save patient data
+      await savePatientData(patientData);
+      
+      setScanStatus('Patient data received successfully!');
+      setShowScanner(false);
+      
+      // Reload the page to show new patient
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      setScanStatus('Failed to process QR code. Please try again.');
+      console.error('QR scan error:', error);
+    }
+  };
 
   return (
     <div className="dashboard">
@@ -20,11 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <h1>M-dawa - Doctor Portal</h1>
         <div className="user-info">
           <span>{user.name} ({user.role})</span>
-          <button onClick={() => setShowOTPVerification(true)} className="btn-secondary">
-            🔐 Enter Patient OTP
-          </button>
-          <button onClick={() => setShowReceiver(true)} className="btn-secondary">
-            📋 Receive Data (QR/JSON)
+          <button onClick={() => setShowScanner(true)} className="btn-primary">
+            📷 Scan Patient QR Code
           </button>
           <button onClick={onLogout} className="btn-secondary">Logout</button>
         </div>
@@ -46,21 +69,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {showOTPVerification && (
-        <OTPVerification 
-          onSuccess={async (patientData) => {
-            // Import patient data automatically
-            await (window as any).electronAPI.transfer.receive(patientData);
-            setShowOTPVerification(false);
-            alert('Patient data imported successfully!');
-            window.location.reload();
-          }}
-          onCancel={() => setShowOTPVerification(false)}
+      {showScanner && (
+        <QRScanner 
+          onScan={handleQRScan}
+          onClose={() => setShowScanner(false)}
         />
       )}
 
-      {showReceiver && (
-        <DataReceiver onClose={() => setShowReceiver(false)} />
+      {scanStatus && (
+        <div className="status-toast">
+          {scanStatus}
+        </div>
       )}
     </div>
   );

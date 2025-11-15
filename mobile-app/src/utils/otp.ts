@@ -1,9 +1,12 @@
 // OTP Generation and Management for Mobile App
 
 export interface OTPData {
-  otp: string;
+  code: string;
+  patientId: string;
+  patientName: string;
   expiresAt: Date;
   createdAt: Date;
+  used: boolean;
 }
 
 // Generate a 6-digit OTP
@@ -11,54 +14,38 @@ export const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Store OTP with patient data (in-memory for now, could use AsyncStorage)
-let currentOTP: OTPData | null = null;
-
-export const createOTP = (): OTPData => {
-  const otp = generateOTP();
+// Create OTP data with patient info
+export const createOTPData = (patientId: string, patientName: string): OTPData => {
+  const code = generateOTP();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes expiry
+  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes expiry
   
-  currentOTP = {
-    otp,
+  return {
+    code,
+    patientId,
+    patientName,
     expiresAt,
-    createdAt: now
+    createdAt: now,
+    used: false
   };
-  
-  return currentOTP;
 };
 
-export const getCurrentOTP = (): OTPData | null => {
-  if (!currentOTP) return null;
+// Get time remaining in human-readable format
+export const getTimeRemaining = (expiresAt: Date): string => {
+  const now = new Date();
+  const remaining = expiresAt.getTime() - now.getTime();
   
-  // Check if expired
-  if (new Date() > currentOTP.expiresAt) {
-    currentOTP = null;
-    return null;
+  if (remaining <= 0) {
+    return 'Expired';
   }
   
-  return currentOTP;
-};
-
-export const clearOTP = (): void => {
-  currentOTP = null;
-};
-
-export const isOTPValid = (otp: string): boolean => {
-  const current = getCurrentOTP();
-  if (!current) return false;
-  return current.otp === otp;
-};
-
-export const getOTPTimeRemaining = (): number => {
-  const current = getCurrentOTP();
-  if (!current) return 0;
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
   
-  const now = new Date();
-  const remaining = current.expiresAt.getTime() - now.getTime();
-  return Math.max(0, Math.floor(remaining / 1000)); // seconds
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// Format time for display
 export const formatTimeRemaining = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;

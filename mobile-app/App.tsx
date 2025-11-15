@@ -53,11 +53,11 @@ export default function App() {
       }}
     >
       <Tab.Screen 
-        name="OTP" 
+        name="Share" 
         component={OTPScreen}
         options={{
-          title: 'Access Code',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🔐</Text>,
+          title: 'Share Records',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📱</Text>,
           headerShown: false
         }}
       />
@@ -65,8 +65,8 @@ export default function App() {
         name="Transfer" 
         component={DataTransferScreen}
         options={{
-          title: 'Transfer Data',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🔄</Text>,
+          title: 'Quick Transfer',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚡</Text>,
           headerShown: false
         }}
       />

@@ -144,3 +144,93 @@ export const initDemoData = () => {
     console.log('✅ Demo data initialized');
   }
 };
+
+// Save patient data from mobile transfer
+export const savePatientData = async (transferData: any) => {
+  try {
+    const { patient, records, prescriptions, appointments, labResults, vitals } = transferData;
+    
+    // Get existing data
+    const patients = storage.get('patients', []);
+    const medicalRecords = storage.get('medicalRecords', []);
+    const prescriptionsList = storage.get('prescriptions', []);
+    const appointmentsList = storage.get('appointments', []);
+    const labResultsList = storage.get('labResults', []);
+    const vitalsList = storage.get('vitals', []);
+    
+    // Check if patient already exists
+    const existingPatientIndex = patients.findIndex((p: any) => p.id === patient.id);
+    
+    if (existingPatientIndex >= 0) {
+      // Update existing patient
+      patients[existingPatientIndex] = { ...patient, updatedAt: new Date().toISOString() };
+    } else {
+      // Add new patient
+      patients.push(patient);
+    }
+    
+    // Add records (avoid duplicates)
+    if (records && Array.isArray(records)) {
+      records.forEach((record: any) => {
+        const exists = medicalRecords.some((r: any) => r.id === record.id);
+        if (!exists) {
+          medicalRecords.push(record);
+        }
+      });
+    }
+    
+    // Add prescriptions
+    if (prescriptions && Array.isArray(prescriptions)) {
+      prescriptions.forEach((prescription: any) => {
+        const exists = prescriptionsList.some((p: any) => p.id === prescription.id);
+        if (!exists) {
+          prescriptionsList.push(prescription);
+        }
+      });
+    }
+    
+    // Add appointments
+    if (appointments && Array.isArray(appointments)) {
+      appointments.forEach((appointment: any) => {
+        const exists = appointmentsList.some((a: any) => a.id === appointment.id);
+        if (!exists) {
+          appointmentsList.push(appointment);
+        }
+      });
+    }
+    
+    // Add lab results
+    if (labResults && Array.isArray(labResults)) {
+      labResults.forEach((lab: any) => {
+        const exists = labResultsList.some((l: any) => l.id === lab.id);
+        if (!exists) {
+          labResultsList.push(lab);
+        }
+      });
+    }
+    
+    // Add vitals
+    if (vitals && Array.isArray(vitals)) {
+      vitals.forEach((vital: any) => {
+        const exists = vitalsList.some((v: any) => v.id === vital.id);
+        if (!exists) {
+          vitalsList.push(vital);
+        }
+      });
+    }
+    
+    // Save all data
+    storage.set('patients', patients);
+    storage.set('medicalRecords', medicalRecords);
+    storage.set('prescriptions', prescriptionsList);
+    storage.set('appointments', appointmentsList);
+    storage.set('labResults', labResultsList);
+    storage.set('vitals', vitalsList);
+    
+    console.log('✅ Patient data saved successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error saving patient data:', error);
+    return { success: false, error };
+  }
+};
