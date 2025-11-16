@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import { v4 as uuidv4 } from 'uuid';
+import { storage } from '../utils/storage';
 
 interface PatientDetailsProps {
   patient: any;
@@ -13,6 +14,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
   const [appointments, setAppointments] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
   const [vitals, setVitals] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<Map<string, string>>(new Map());
   const [activeTab, setActiveTab] = useState<'info' | 'records' | 'prescriptions' | 'appointments' | 'labs' | 'vitals' | 'timeline'>('info');
   const [showNewRecord, setShowNewRecord] = useState(false);
   const [showNewPrescription, setShowNewPrescription] = useState(false);
@@ -24,20 +26,35 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
     loadData();
   }, [patient]);
 
-  const loadData = async () => {
-    const recordsData = await window.electronAPI.records.getByPatient(patient.id);
-    const prescriptionsData = await window.electronAPI.prescriptions.getByPatient(patient.id);
-    const appointmentsData = await window.electronAPI.appointments.getByPatient(patient.id);
-    const labResultsData = await window.electronAPI.labResults.getByPatient(patient.id);
-    const vitalsData = await window.electronAPI.vitals.getByPatient(patient.id);
-    setRecords(recordsData);
-    setPrescriptions(prescriptionsData);
-    setAppointments(appointmentsData);
-    setLabResults(labResultsData);
-    setVitals(vitalsData);
+  const loadData = () => {
+    // Load data from localStorage
+    const allRecords = storage.get('medicalRecords', []);
+    const allPrescriptions = storage.get('prescriptions', []);
+    const allAppointments = storage.get('appointments', []);
+    const allLabResults = storage.get('labResults', []);
+    const allVitals = storage.get('vitals', []);
+    
+    // Filter by patient ID
+    setRecords(allRecords.filter((r: any) => r.patientId === patient.id));
+    setPrescriptions(allPrescriptions.filter((p: any) => p.patientId === patient.id));
+    setAppointments(allAppointments.filter((a: any) => a.patientId === patient.id));
+    setLabResults(allLabResults.filter((l: any) => l.patientId === patient.id));
+    setVitals(allVitals.filter((v: any) => v.patientId === patient.id));
+    
+    // Load doctor names
+    const allUsers = storage.get('users', []);
+    const doctorMap = new Map<string, string>();
+    allUsers.forEach((user: any) => {
+      doctorMap.set(user.id, user.name);
+    });
+    setDoctors(doctorMap);
   };
 
-  const handleSaveRecord = async (e: React.FormEvent) => {
+  const getDoctorName = (doctorId: string): string => {
+    return doctors.get(doctorId) || 'Unknown Doctor';
+  };
+
+  const handleSaveRecord = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -48,15 +65,20 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
       doctorId: currentUser.id,
       diagnosis: formData.get('diagnosis'),
       symptoms: formData.get('symptoms'),
-      notes: formData.get('notes')
+      notes: formData.get('notes'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    await window.electronAPI.records.save(record);
+    const allRecords = storage.get('medicalRecords', []);
+    allRecords.push(record);
+    storage.set('medicalRecords', allRecords);
+    
     setShowNewRecord(false);
     loadData();
   };
 
-  const handleSavePrescription = async (e: React.FormEvent) => {
+  const handleSavePrescription = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -70,15 +92,20 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
       dosage: formData.get('dosage'),
       frequency: formData.get('frequency'),
       duration: formData.get('duration'),
-      instructions: formData.get('instructions')
+      instructions: formData.get('instructions'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    await window.electronAPI.prescriptions.save(prescription);
+    const allPrescriptions = storage.get('prescriptions', []);
+    allPrescriptions.push(prescription);
+    storage.set('prescriptions', allPrescriptions);
+    
     setShowNewPrescription(false);
     loadData();
   };
 
-  const handleSaveAppointment = async (e: React.FormEvent) => {
+  const handleSaveAppointment = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -91,15 +118,20 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
       time: formData.get('time'),
       type: formData.get('type'),
       status: 'scheduled',
-      notes: formData.get('notes')
+      notes: formData.get('notes'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    await window.electronAPI.appointments.save(appointment);
+    const allAppointments = storage.get('appointments', []);
+    allAppointments.push(appointment);
+    storage.set('appointments', allAppointments);
+    
     setShowNewAppointment(false);
     loadData();
   };
 
-  const handleSaveLabResult = async (e: React.FormEvent) => {
+  const handleSaveLabResult = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -114,15 +146,20 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
       normalRange: formData.get('normalRange'),
       status: formData.get('status'),
       notes: formData.get('notes'),
-      testDate: formData.get('testDate')
+      testDate: formData.get('testDate'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    await window.electronAPI.labResults.save(labResult);
+    const allLabResults = storage.get('labResults', []);
+    allLabResults.push(labResult);
+    storage.set('labResults', allLabResults);
+    
     setShowNewLabResult(false);
     loadData();
   };
 
-  const handleSaveVitals = async (e: React.FormEvent) => {
+  const handleSaveVitals = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -136,10 +173,14 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
       weight: formData.get('weight') ? Number(formData.get('weight')) : undefined,
       height: formData.get('height') ? Number(formData.get('height')) : undefined,
       oxygenSaturation: formData.get('oxygenSaturation') ? Number(formData.get('oxygenSaturation')) : undefined,
-      recordedBy: currentUser.id
+      recordedBy: currentUser.id,
+      recordedAt: new Date().toISOString()
     };
 
-    await window.electronAPI.vitals.save(vital);
+    const allVitals = storage.get('vitals', []);
+    allVitals.push(vital);
+    storage.set('vitals', allVitals);
+    
     setShowNewVitals(false);
     loadData();
   };
@@ -239,7 +280,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="records-list">
               {records.map(record => (
                 <div key={record.id} className="record-card">
-                  <h4>{record.diagnosis}</h4>
+                  <div className="record-header">
+                    <h4>{record.diagnosis}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(record.doctorId)}</span>
+                  </div>
                   <p><strong>Symptoms:</strong> {record.symptoms}</p>
                   {record.notes && <p><strong>Notes:</strong> {record.notes}</p>}
                   <p className="record-date">
@@ -292,7 +336,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="prescriptions-list">
               {prescriptions.map(prescription => (
                 <div key={prescription.id} className="prescription-card">
-                  <h4>{prescription.medication}</h4>
+                  <div className="prescription-header">
+                    <h4>{prescription.medication}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(prescription.doctorId)}</span>
+                  </div>
                   <p><strong>Dosage:</strong> {prescription.dosage}</p>
                   <p><strong>Frequency:</strong> {prescription.frequency}</p>
                   <p><strong>Duration:</strong> {prescription.duration}</p>
@@ -359,6 +406,9 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="vitals-list">
               {vitals.map(vital => (
                 <div key={vital.id} className="vital-card">
+                  <div className="vital-header">
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(vital.recordedBy)}</span>
+                  </div>
                   <div className="vital-grid">
                     {vital.bloodPressure && <div><strong>BP:</strong> {vital.bloodPressure}</div>}
                     {vital.heartRate && <div><strong>HR:</strong> {vital.heartRate} bpm</div>}
@@ -436,7 +486,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="labs-list">
               {labResults.map(lab => (
                 <div key={lab.id} className={`lab-card status-${lab.status}`}>
-                  <h4>{lab.testName}</h4>
+                  <div className="lab-header">
+                    <h4>{lab.testName}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(lab.doctorId)}</span>
+                  </div>
                   <p><strong>Type:</strong> {lab.testType}</p>
                   <p><strong>Result:</strong> {lab.result}</p>
                   {lab.normalRange && <p><strong>Normal Range:</strong> {lab.normalRange}</p>}
@@ -493,7 +546,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="appointments-list">
               {appointments.map(appointment => (
                 <div key={appointment.id} className={`appointment-card status-${appointment.status}`}>
-                  <h4>{appointment.type.charAt(0).toUpperCase() + appointment.type.slice(1)}</h4>
+                  <div className="appointment-header-row">
+                    <h4>{appointment.type.charAt(0).toUpperCase() + appointment.type.slice(1)}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(appointment.doctorId)}</span>
+                  </div>
                   <p><strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {appointment.time}</p>
                   <p><strong>Status:</strong> <span className={`status-badge ${appointment.status}`}>{appointment.status}</span></p>
@@ -514,6 +570,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
                   const date = item.createdAt || item.recordedAt || item.testDate;
                   let type = '';
                   let content = '';
+                  let doctorId = item.doctorId || item.recordedBy;
                   
                   if (item.diagnosis) {
                     type = 'Medical Record';
@@ -539,6 +596,9 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
                         <div className="timeline-type">{type}</div>
                         <div className="timeline-text">{content}</div>
                         <div className="timeline-date">{new Date(date).toLocaleString()}</div>
+                        {doctorId && (
+                          <div className="timeline-doctor">👨‍⚕️ {getDoctorName(doctorId)}</div>
+                        )}
                       </div>
                     </div>
                   );

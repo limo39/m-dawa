@@ -31,11 +31,24 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
     const appointmentsData = await window.electronAPI.appointments.getByPatient(patient.id);
     const labResultsData = await window.electronAPI.labResults.getByPatient(patient.id);
     const vitalsData = await window.electronAPI.vitals.getByPatient(patient.id);
+    
+    // Load doctor names
+    const allUsers = await window.electronAPI.users.getAll();
+    const doctorMap = new Map<string, string>();
+    allUsers.forEach((user: any) => {
+      doctorMap.set(user.id, user.name);
+    });
+    setDoctors(doctorMap);
+    
     setRecords(recordsData);
     setPrescriptions(prescriptionsData);
     setAppointments(appointmentsData);
     setLabResults(labResultsData);
     setVitals(vitalsData);
+  };
+
+  const getDoctorName = (doctorId: string): string => {
+    return doctors.get(doctorId) || 'Unknown Doctor';
   };
 
   const handleSaveRecord = async (e: React.FormEvent) => {
@@ -240,7 +253,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="records-list">
               {records.map(record => (
                 <div key={record.id} className="record-card">
-                  <h4>{record.diagnosis}</h4>
+                  <div className="record-header">
+                    <h4>{record.diagnosis}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(record.doctorId)}</span>
+                  </div>
                   <p><strong>Symptoms:</strong> {record.symptoms}</p>
                   {record.notes && <p><strong>Notes:</strong> {record.notes}</p>}
                   <p className="record-date">
@@ -293,7 +309,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="prescriptions-list">
               {prescriptions.map(prescription => (
                 <div key={prescription.id} className="prescription-card">
-                  <h4>{prescription.medication}</h4>
+                  <div className="prescription-header">
+                    <h4>{prescription.medication}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(prescription.doctorId)}</span>
+                  </div>
                   <p><strong>Dosage:</strong> {prescription.dosage}</p>
                   <p><strong>Frequency:</strong> {prescription.frequency}</p>
                   <p><strong>Duration:</strong> {prescription.duration}</p>
@@ -360,6 +379,9 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="vitals-list">
               {vitals.map(vital => (
                 <div key={vital.id} className="vital-card">
+                  <div className="vital-header">
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(vital.recordedBy)}</span>
+                  </div>
                   <div className="vital-grid">
                     {vital.bloodPressure && <div><strong>BP:</strong> {vital.bloodPressure}</div>}
                     {vital.heartRate && <div><strong>HR:</strong> {vital.heartRate} bpm</div>}
@@ -437,7 +459,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="labs-list">
               {labResults.map(lab => (
                 <div key={lab.id} className={`lab-card status-${lab.status}`}>
-                  <h4>{lab.testName}</h4>
+                  <div className="lab-header">
+                    <h4>{lab.testName}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(lab.doctorId)}</span>
+                  </div>
                   <p><strong>Type:</strong> {lab.testType}</p>
                   <p><strong>Result:</strong> {lab.result}</p>
                   {lab.normalRange && <p><strong>Normal Range:</strong> {lab.normalRange}</p>}
@@ -494,7 +519,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
             <div className="appointments-list">
               {appointments.map(appointment => (
                 <div key={appointment.id} className={`appointment-card status-${appointment.status}`}>
-                  <h4>{appointment.type.charAt(0).toUpperCase() + appointment.type.slice(1)}</h4>
+                  <div className="appointment-header-row">
+                    <h4>{appointment.type.charAt(0).toUpperCase() + appointment.type.slice(1)}</h4>
+                    <span className="doctor-tag">👨‍⚕️ {getDoctorName(appointment.doctorId)}</span>
+                  </div>
                   <p><strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {appointment.time}</p>
                   <p><strong>Status:</strong> <span className={`status-badge ${appointment.status}`}>{appointment.status}</span></p>
@@ -515,6 +543,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
                   const date = item.createdAt || item.recordedAt || item.testDate;
                   let type = '';
                   let content = '';
+                  let doctorId = item.doctorId || item.recordedBy;
                   
                   if (item.diagnosis) {
                     type = 'Medical Record';
@@ -540,6 +569,9 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
                         <div className="timeline-type">{type}</div>
                         <div className="timeline-text">{content}</div>
                         <div className="timeline-date">{new Date(date).toLocaleString()}</div>
+                        {doctorId && (
+                          <div className="timeline-doctor">👨‍⚕️ {getDoctorName(doctorId)}</div>
+                        )}
                       </div>
                     </div>
                   );
