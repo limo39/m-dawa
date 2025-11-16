@@ -2,7 +2,7 @@
 const Store = require('electron-store');
 const store = new Store();
 
-// Create demo doctor user
+// Create demo users
 const users = [
   {
     id: '1',
@@ -10,6 +10,14 @@ const users = [
     email: 'doctor@mdawa.com',
     password: 'password123',
     role: 'DOCTOR',
+    createdAt: new Date()
+  },
+  {
+    id: '2',
+    name: 'Nurse Johnson',
+    email: 'nurse@mdawa.com',
+    password: 'nurse123',
+    role: 'NURSE',
     createdAt: new Date()
   }
 ];
@@ -120,10 +128,15 @@ store.set('labResults', labResults);
 store.set('vitals', vitals);
 
 console.log('✅ Demo data initialized successfully!');
-console.log('Login credentials:');
-console.log('  Email: doctor@mdawa.com');
-console.log('  Password: password123');
+console.log('\nLogin credentials:');
+console.log('  Doctor:');
+console.log('    Email: doctor@mdawa.com');
+console.log('    Password: password123');
+console.log('  Nurse:');
+console.log('    Email: nurse@mdawa.com');
+console.log('    Password: nurse123');
 console.log('\nDemo data includes:');
+console.log('  - 2 Users (1 Doctor, 1 Nurse)');
 console.log('  - 1 Patient (John Doe)');
 console.log('  - 1 Medical Record');
 console.log('  - 1 Prescription');

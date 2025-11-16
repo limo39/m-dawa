@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PatientList from './PatientList';
 import PatientDetails from './PatientDetails';
 import DataReceiver from './DataReceiver';
+import QRScanner from './QRScanner';
 
 interface DashboardProps {
   user: any;
@@ -11,6 +12,38 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [showReceiver, setShowReceiver] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanStatus, setScanStatus] = useState<string>('');
+
+  const handleQRScan = async (data: string) => {
+    try {
+      const patientData = JSON.parse(data);
+      
+      // Validate the data structure
+      if (!patientData.patient || !patientData.otp) {
+        setScanStatus('Invalid QR code data');
+        return;
+      }
+
+      // Save patient data using electronAPI
+      const result = await window.electronAPI.transfer.receive(patientData);
+      
+      if (result.success) {
+        setScanStatus('Patient data received successfully!');
+        setShowScanner(false);
+        
+        // Reload the page to show new patient
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        setScanStatus('Failed to import patient data');
+      }
+    } catch (error) {
+      setScanStatus('Failed to process QR code. Please try again.');
+      console.error('QR scan error:', error);
+    }
+  };
 
   return (
     <div className="dashboard">
@@ -18,8 +51,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <h1>M-dawa - Doctor Portal</h1>
         <div className="user-info">
           <span>{user.name} ({user.role})</span>
+          <button onClick={() => setShowScanner(true)} className="btn-primary">
+            📷 Scan QR Code
+          </button>
           <button onClick={() => setShowReceiver(true)} className="btn-secondary">
-            Receive Patient Data
+            📋 Manual Input
           </button>
           <button onClick={onLogout} className="btn-secondary">Logout</button>
         </div>
@@ -41,8 +77,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       </div>
 
+      {showScanner && (
+        <QRScanner 
+          onScan={handleQRScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
       {showReceiver && (
         <DataReceiver onClose={() => setShowReceiver(false)} />
+      )}
+
+      {scanStatus && (
+        <div className="status-toast">
+          {scanStatus}
+        </div>
       )}
     </div>
   );

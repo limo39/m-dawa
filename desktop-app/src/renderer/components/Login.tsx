@@ -39,7 +39,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
           <button type="submit" className="btn-primary">Login</button>
         </form>
-        <p className="demo-info">Demo: doctor@mdawa.com / password123</p>
+        <div className="demo-info">
+          <p><strong>Demo Accounts:</strong></p>
+          <p>Doctor: doctor@mdawa.com / password123</p>
+          <p>Nurse: nurse@mdawa.com / nurse123</p>
+        </div>
       </div>
     </div>
   );

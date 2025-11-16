@@ -41,6 +41,14 @@ export const initDemoData = () => {
         password: 'password123',
         role: 'DOCTOR',
         createdAt: new Date().toISOString()
+      },
+      {
+        id: '2',
+        name: 'Nurse Johnson',
+        email: 'nurse@mdawa.com',
+        password: 'nurse123',
+        role: 'NURSE',
+        createdAt: new Date().toISOString()
       }
     ]);
 
@@ -149,7 +157,7 @@ export const initDemoData = () => {
 export const savePatientData = async (transferData: any) => {
   try {
     const { patient, records, prescriptions, appointments, labResults, vitals } = transferData;
-    
+
     // Get existing data
     const patients = storage.get('patients', []);
     const medicalRecords = storage.get('medicalRecords', []);
@@ -157,10 +165,10 @@ export const savePatientData = async (transferData: any) => {
     const appointmentsList = storage.get('appointments', []);
     const labResultsList = storage.get('labResults', []);
     const vitalsList = storage.get('vitals', []);
-    
+
     // Check if patient already exists
     const existingPatientIndex = patients.findIndex((p: any) => p.id === patient.id);
-    
+
     if (existingPatientIndex >= 0) {
       // Update existing patient
       patients[existingPatientIndex] = { ...patient, updatedAt: new Date().toISOString() };
@@ -168,7 +176,7 @@ export const savePatientData = async (transferData: any) => {
       // Add new patient
       patients.push(patient);
     }
-    
+
     // Add records (avoid duplicates)
     if (records && Array.isArray(records)) {
       records.forEach((record: any) => {
@@ -178,7 +186,7 @@ export const savePatientData = async (transferData: any) => {
         }
       });
     }
-    
+
     // Add prescriptions
     if (prescriptions && Array.isArray(prescriptions)) {
       prescriptions.forEach((prescription: any) => {
@@ -188,7 +196,7 @@ export const savePatientData = async (transferData: any) => {
         }
       });
     }
-    
+
     // Add appointments
     if (appointments && Array.isArray(appointments)) {
       appointments.forEach((appointment: any) => {
@@ -198,7 +206,7 @@ export const savePatientData = async (transferData: any) => {
         }
       });
     }
-    
+
     // Add lab results
     if (labResults && Array.isArray(labResults)) {
       labResults.forEach((lab: any) => {
@@ -208,7 +216,7 @@ export const savePatientData = async (transferData: any) => {
         }
       });
     }
-    
+
     // Add vitals
     if (vitals && Array.isArray(vitals)) {
       vitals.forEach((vital: any) => {
@@ -218,7 +226,7 @@ export const savePatientData = async (transferData: any) => {
         }
       });
     }
-    
+
     // Save all data
     storage.set('patients', patients);
     storage.set('medicalRecords', medicalRecords);
@@ -226,7 +234,7 @@ export const savePatientData = async (transferData: any) => {
     storage.set('appointments', appointmentsList);
     storage.set('labResults', labResultsList);
     storage.set('vitals', vitalsList);
-    
+
     console.log('✅ Patient data saved successfully');
     return { success: true };
   } catch (error) {
