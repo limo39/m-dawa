@@ -1,13 +1,16 @@
 import 'react-native-gesture-handler';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import * as Notifications from 'expo-notifications';
 import SetupScreen from './src/screens/SetupScreen';
 import DataTransferScreen from './src/screens/DataTransferScreen';
 import OTPScreen from './src/screens/OTPScreen';
+import AppointmentsScreen from './src/screens/AppointmentsScreen';
 import { loadPatientData } from './src/utils/storage';
-import { Text } from 'react-native';
+import { requestNotificationPermissions, scheduleAllAppointmentNotifications } from './src/utils/notifications';
+import { Text, Alert } from 'react-native';
 
 // Polyfill for TextEncoder/TextDecoder (needed for QR code)
 import { TextEncoder, TextDecoder } from 'text-encoding';
@@ -24,15 +27,58 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   const [hasPatient, setHasPatient] = useState(false);
   const [loading, setLoading] = useState(true);
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
 
   useEffect(() => {
     checkPatientData();
+    setupNotifications();
+
+    // Notification listeners
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification tapped:', response);
+      const data = response.notification.request.content.data;
+      if (data.type === 'appointment') {
+        Alert.alert(
+          'Appointment Reminder',
+          'Don\'t forget your upcoming appointment!',
+          [{ text: 'OK' }]
+        );
+      }
+    });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, []);
 
   const checkPatientData = async () => {
     const data = await loadPatientData();
     setHasPatient(!!data);
     setLoading(false);
+
+    // Schedule notifications for appointments if patient data exists
+    if (data && data.appointments) {
+      await scheduleAllAppointmentNotifications(data.appointments);
+    }
+  };
+
+  const setupNotifications = async () => {
+    const hasPermission = await requestNotificationPermissions();
+    if (hasPermission) {
+      console.log('Notification permissions granted');
+    } else {
+      console.log('Notification permissions denied');
+    }
   };
 
   if (loading) {
@@ -52,6 +98,15 @@ export default function App() {
         }
       }}
     >
+      <Tab.Screen 
+        name="Appointments" 
+        component={AppointmentsScreen}
+        options={{
+          title: 'Appointments',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📅</Text>,
+          headerShown: false
+        }}
+      />
       <Tab.Screen 
         name="Share" 
         component={OTPScreen}

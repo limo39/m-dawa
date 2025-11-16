@@ -13,6 +13,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, currentUser })
   const [appointments, setAppointments] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
   const [vitals, setVitals] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<Map<string, string>>(new Map());
   const [activeTab, setActiveTab] = useState<'info' | 'records' | 'prescriptions' | 'appointments' | 'labs' | 'vitals' | 'timeline'>('info');
   const [showNewRecord, setShowNewRecord] = useState(false);
   const [showNewPrescription, setShowNewPrescription] = useState(false);
