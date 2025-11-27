@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -11,36 +11,70 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   const [scanning, setScanning] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualData, setManualData] = useState('');
+  const [cameraCount, setCameraCount] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const qrCodeRegionId = 'qr-reader';
 
   useEffect(() => {
     if (!showManualInput) {
-      startScanner();
+      checkCamerasAndStart();
     }
     return () => {
       stopScanner();
     };
   }, [showManualInput]);
 
-  const startScanner = async () => {
+  const checkCamerasAndStart = async () => {
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      setCameraCount(cameras.length);
+
+      if (cameras.length === 0) {
+        setError('No camera found on this device. Please use manual input instead.');
+        return;
+      }
+
+      startScanner(cameras);
+    } catch (err: any) {
+      console.error('Camera check error:', err);
+      setError('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const startScanner = async (cameras: any[]) => {
     try {
       const scanner = new Html5Qrcode(qrCodeRegionId);
       scannerRef.current = scanner;
 
-      // Try to get available cameras
-      const cameras = await Html5Qrcode.getCameras();
-      console.log('Available cameras:', cameras);
-
-      const cameraId = cameras.length > 0 ? cameras[0].id : { facingMode: 'environment' };
+      // Use first available camera
+      const cameraId = cameras[0].id;
+      console.log('Starting scanner with camera:', cameraId);
 
       await scanner.start(
         cameraId,
         {
-          fps: 5,
-          qrbox: { width: 300, height: 300 },
+          fps: 10,
+          qrbox: { width: 350, height: 350 },
           aspectRatio: 1.0,
-          disableFlip: false
+          disableFlip: false,
+          formatsToSupport: [
+            'QR_CODE',
+            'AZTEC',
+            'CODABAR',
+            'CODE_39',
+            'CODE_93',
+            'CODE_128',
+            'DATA_MATRIX',
+            'MAXICODE',
+            'ITF',
+            'EAN_13',
+            'EAN_8',
+            'PDF_417',
+            'RSS_14',
+            'RSS_EXPANDED',
+            'UPC_A',
+            'UPC_E'
+          ]
         },
         (decodedText) => {
           console.log('QR Code scanned:', decodedText.substring(0, 100) + '...');
@@ -76,8 +110,16 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
   const handleManualSubmit = () => {
     if (manualData.trim()) {
-      onScan(manualData);
-      onClose();
+      try {
+        // Validate JSON
+        JSON.parse(manualData);
+        onScan(manualData);
+        onClose();
+      } catch (e) {
+        alert('Invalid JSON format. Please check the data and try again.');
+      }
+    } else {
+      alert('Please paste QR code data');
     }
   };
 
@@ -92,7 +134,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
     <div className="modal-overlay">
       <div className="modal qr-scanner-modal">
         <h2>📷 Scan Patient QR Code</h2>
-        
+
         {showManualInput ? (
           <div className="manual-input-container">
             <p className="manual-instructions">
@@ -102,18 +144,18 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
               value={manualData}
               onChange={(e) => setManualData(e.target.value)}
               placeholder='Paste QR code data here (JSON format)...'
-              rows={8}
+              rows={10}
               className="manual-textarea"
             />
             <div className="modal-actions">
               <button onClick={handleManualSubmit} className="btn-primary">
-                Import Data
+                ✓ Import Data
               </button>
               <button onClick={toggleManualInput} className="btn-secondary">
-                Back to Scanner
+                ← Back to Scanner
               </button>
               <button onClick={handleClose} className="btn-secondary">
-                Cancel
+                ✕ Cancel
               </button>
             </div>
           </div>
@@ -121,23 +163,25 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           <div className="error-container">
             <p className="error-message">❌ {error}</p>
             <p className="error-help">
-              Make sure you've granted camera permissions and your device has a camera.
+              {cameraCount === 0
+                ? 'No camera detected on this device.'
+                : 'Make sure you\'ve granted camera permissions.'}
             </p>
             <button onClick={toggleManualInput} className="btn-secondary" style={{ marginTop: '15px' }}>
-              Use Manual Input Instead
+              📋 Use Manual Input Instead
             </button>
           </div>
         ) : (
           <>
             <div className="scanner-instructions">
-              <p>Position the QR code within the frame</p>
+              <p>📱 Position the QR code within the frame</p>
               <p style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
                 Hold steady and ensure good lighting
               </p>
             </div>
-            
+
             <div id={qrCodeRegionId} className="qr-reader"></div>
-            
+
             {scanning && (
               <div className="scanning-indicator">
                 <p>✓ QR Code detected! Processing...</p>
@@ -145,17 +189,18 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             )}
 
             <div className="scanner-tips">
-              <p><strong>Tips for better scanning:</strong></p>
+              <p><strong>💡 Tips for better scanning:</strong></p>
               <ul>
                 <li>Increase phone screen brightness</li>
                 <li>Hold phone steady</li>
-                <li>Ensure good lighting</li>
+                <li>Ensure good lighting (not too bright)</li>
                 <li>Move closer or further away</li>
+                <li>Clean camera lens</li>
               </ul>
             </div>
 
-            <button onClick={toggleManualInput} className="btn-secondary" style={{ marginTop: '10px' }}>
-              Can't Scan? Use Manual Input
+            <button onClick={toggleManualInput} className="btn-secondary" style={{ marginTop: '10px', width: '100%' }}>
+              📋 Can't Scan? Use Manual Input
             </button>
           </>
         )}
@@ -163,7 +208,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         {!showManualInput && (
           <div className="modal-actions">
             <button onClick={handleClose} className="btn-secondary">
-              Cancel
+              ✕ Cancel
             </button>
           </div>
         )}
