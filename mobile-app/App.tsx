@@ -8,6 +8,7 @@ import SetupScreen from './src/screens/SetupScreen';
 import DataTransferScreen from './src/screens/DataTransferScreen';
 import OTPScreen from './src/screens/OTPScreen';
 import AppointmentsScreen from './src/screens/AppointmentsScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import { loadPatientData } from './src/utils/storage';
 import { requestNotificationPermissions, scheduleAllAppointmentNotifications } from './src/utils/notifications';
 import { Text, Alert } from 'react-native';
@@ -98,6 +99,15 @@ export default function App() {
         }
       }}
     >
+      <Tab.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🔔</Text>,
+          headerShown: false
+        }}
+      />
       <Tab.Screen 
         name="Appointments" 
         component={AppointmentsScreen}
