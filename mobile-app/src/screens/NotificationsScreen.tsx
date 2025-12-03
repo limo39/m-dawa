@@ -15,6 +15,7 @@ interface Notification {
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   useEffect(() => {
     loadNotifications();
@@ -23,8 +24,13 @@ export default function NotificationsScreen() {
   const loadNotifications = async () => {
     try {
       const patientData = await loadPatientData();
-      if (patientData && patientData.notifications) {
-        setNotifications(patientData.notifications);
+      if (patientData) {
+        if (patientData._accessError) {
+          setAccessError(patientData._accessError);
+        }
+        if (patientData.notifications) {
+          setNotifications(patientData.notifications);
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -104,6 +110,15 @@ export default function NotificationsScreen() {
           {unreadCount > 0 ? `${unreadCount} new notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up'}
         </Text>
       </View>
+
+      {/* Access Error Alert */}
+      {accessError && (
+        <View style={styles.errorAlert}>
+          <Text style={styles.errorIcon}>🔒</Text>
+          <Text style={styles.errorTitle}>Medical Records Restricted</Text>
+          <Text style={styles.errorText}>{accessError}</Text>
+        </View>
+      )}
 
       {/* Notifications List */}
       {notifications.length > 0 ? (
@@ -351,5 +366,32 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 30
+  },
+  errorAlert: {
+    backgroundColor: '#fff3cd',
+    marginHorizontal: 15,
+    marginTop: 15,
+    padding: 15,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff6b6b',
+    alignItems: 'center'
+  },
+  errorIcon: {
+    fontSize: 40,
+    marginBottom: 10
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#c62828',
+    textAlign: 'center',
+    lineHeight: 20
   }
 });

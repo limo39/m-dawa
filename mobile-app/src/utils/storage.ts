@@ -1,9 +1,20 @@
 import * as SecureStore from 'expo-secure-store';
+import * as encryption from './encryption';
 
 const PATIENT_DATA_KEY = 'patient_data';
 
 export const savePatientData = async (data: any) => {
   try {
+    // Encrypt medical records before saving
+    if (data.records && Array.isArray(data.records)) {
+      data.records = await Promise.all(
+        data.records.map(async (record: any) => ({
+          ...record,
+          _encrypted: await encryption.encryptMedicalRecord(record, record.id)
+        }))
+      );
+    }
+    
     const jsonData = JSON.stringify(data);
     await SecureStore.setItemAsync(PATIENT_DATA_KEY, jsonData);
     return true;
@@ -17,7 +28,30 @@ export const loadPatientData = async () => {
   try {
     const jsonData = await SecureStore.getItemAsync(PATIENT_DATA_KEY);
     if (jsonData) {
-      return JSON.parse(jsonData);
+      const data = JSON.parse(jsonData);
+      
+      // Attempt to decrypt medical records - this will fail on mobile
+      if (data.records && Array.isArray(data.records)) {
+        try {
+          await Promise.all(
+            data.records.map(async (record: any) => {
+              if (record._encrypted) {
+                await encryption.decryptMedicalRecord(record._encrypted);
+              }
+            })
+          );
+        } catch (decryptError: any) {
+          console.error('Medical records access denied:', decryptError.message);
+          // Return data without records on mobile
+          return {
+            ...data,
+            records: [],
+            _accessError: encryption.getMedicalRecordsAccessError()
+          };
+        }
+      }
+      
+      return data;
     }
     return null;
   } catch (error) {

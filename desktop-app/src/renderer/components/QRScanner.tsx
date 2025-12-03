@@ -56,25 +56,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           fps: 10,
           qrbox: { width: 350, height: 350 },
           aspectRatio: 1.0,
-          disableFlip: false,
-          formatsToSupport: [
-            'QR_CODE',
-            'AZTEC',
-            'CODABAR',
-            'CODE_39',
-            'CODE_93',
-            'CODE_128',
-            'DATA_MATRIX',
-            'MAXICODE',
-            'ITF',
-            'EAN_13',
-            'EAN_8',
-            'PDF_417',
-            'RSS_14',
-            'RSS_EXPANDED',
-            'UPC_A',
-            'UPC_E'
-          ]
+          disableFlip: false
         },
         (decodedText) => {
           console.log('QR Code scanned:', decodedText.substring(0, 100) + '...');
