@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { verifyIncomingTransfer } from '../utils/transferCrypto';
-import type { TransferPayload } from '../../../shared/transfer';
+import type { TransferPayload } from '../../../../shared/transfer';
 
 interface OTPVerificationProps {
   payload: unknown;

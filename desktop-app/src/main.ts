@@ -178,9 +178,30 @@ ipcMain.handle('vitals:save', async (_, vital) => {
 });
 
 ipcMain.handle('transfer:receive', async (_, transferData) => {
-  // Receive patient data from mobile app
-  const { patient, records, prescriptions, appointments, labResults, vitals } = transferData;
-  
+  if (!transferData || typeof transferData !== 'object') {
+    return { success: false, error: 'Invalid transfer payload' };
+  }
+  if (typeof transferData.otp === 'string') {
+    return { success: false, error: 'Outdated transfer format. Ask the patient to generate a new code.' };
+  }
+  if (transferData.v !== 1 || !transferData.patient || typeof transferData.signature !== 'string') {
+    return { success: false, error: 'Invalid transfer payload' };
+  }
+  const expiresAt = Date.parse(transferData.expiresAt);
+  if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+    return { success: false, error: 'This transfer code has expired.' };
+  }
+
+  const usedSignatures = store.get('usedTransferSignatures', []) as string[];
+  if (usedSignatures.includes(transferData.signature)) {
+    return { success: false, error: 'This transfer code has already been used.' };
+  }
+
+  const { patient, records = [], prescriptions = [], appointments, labResults, vitals } = transferData;
+  if (!Array.isArray(records) || !Array.isArray(prescriptions)) {
+    return { success: false, error: 'Invalid transfer payload' };
+  }
+
   // Save patient
   const patients = store.get('patients', []) as any[];
   const existingIndex = patients.findIndex(p => p.id === patient.id);
@@ -257,6 +278,7 @@ ipcMain.handle('transfer:receive', async (_, transferData) => {
     });
     store.set('vitals', allVitals);
   }
-  
+
+  store.set('usedTransferSignatures', [...usedSignatures, transferData.signature]);
   return { success: true, message: 'Data received successfully' };
 });

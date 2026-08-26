@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Clipboard } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
-import { createOTPData, getTimeRemaining, OTPData } from '../utils/otp';
+import { createOtpDisplay, getTimeRemaining, OTPData } from '../utils/otp';
+import { createSignedTransfer } from '../utils/transfer';
 
 export default function OTPScreen() {
   const [patientData, setPatientData] = useState<any>(null);
@@ -34,39 +35,31 @@ export default function OTPScreen() {
     setPatientData(data);
   };
 
-  const handleGenerateQR = () => {
+  const handleGenerateQR = async () => {
     if (!patientData) return;
 
-    const newOTP = createOTPData(
-      patientData.patient.id,
-      `${patientData.patient.firstName} ${patientData.patient.lastName}`
-    );
+    try {
+      const signed = await createSignedTransfer(patientData);
+      const display = createOtpDisplay(
+        signed.otp,
+        patientData.patient.id,
+        `${patientData.patient.firstName} ${patientData.patient.lastName}`,
+        signed.expiresAt
+      );
 
-    // Create transfer data with all patient information
-    const transferData = {
-      otp: newOTP.code,
-      patientId: patientData.patient.id,
-      patientName: `${patientData.patient.firstName} ${patientData.patient.lastName}`,
-      patient: patientData.patient,
-      records: patientData.records || [],
-      prescriptions: patientData.prescriptions || [],
-      appointments: patientData.appointments || [],
-      labResults: patientData.labResults || [],
-      vitals: patientData.vitals || [],
-      generatedAt: new Date().toISOString(),
-      expiresAt: newOTP.expiresAt.toISOString(),
-      signature: 'encrypted_signature_here'
-    };
+      setOtpData(display);
+      setQrData(signed.json);
+      setTimeRemaining(getTimeRemaining(signed.expiresAt));
 
-    setOtpData(newOTP);
-    setQrData(JSON.stringify(transferData));
-    setTimeRemaining(getTimeRemaining(newOTP.expiresAt));
-
-    Alert.alert(
-      'QR Code Generated',
-      `Verification Code: ${newOTP.code}\n\nShow this QR code to your doctor to share your medical records.`,
-      [{ text: 'OK' }]
-    );
+      Alert.alert(
+        'QR Code Generated',
+        `Verification Code: ${signed.otp}\n\nRead this code to your doctor. They must type it after scanning. It is not stored in the QR code.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Failed to generate transfer:', error);
+      Alert.alert('Error', 'Could not generate a transfer code. Please try again.');
+    }
   };
 
   const handleRefreshQR = () => {
@@ -209,11 +202,11 @@ export default function OTPScreen() {
       <View style={styles.instructionsCard}>
         <Text style={styles.instructionsTitle}>📋 How to Use</Text>
         <Text style={styles.instructionText}>
-          1. Tap "Generate QR Code" button{'\n'}
+          1. Tap "Generate QR Code"{'\n'}
           2. Show the QR code to your doctor{'\n'}
-          3. Doctor scans it with their app{'\n'}
-          4. Your medical data is securely transferred{'\n'}
-          5. QR code expires after 15 minutes
+          3. Read the 6-digit code to your doctor{'\n'}
+          4. They type the code after scanning{'\n'}
+          5. The code expires after 15 minutes
         </Text>
       </View>
 
@@ -223,9 +216,9 @@ export default function OTPScreen() {
         <Text style={styles.securityTitle}>Security & Privacy</Text>
         <Text style={styles.securityText}>
           • QR code expires in 15 minutes{'\n'}
-          • Single-use only{'\n'}
+          • Single-use on the doctor's device{'\n'}
           • Works offline (no internet needed){'\n'}
-          • Your data stays encrypted{'\n'}
+          • Signed with your verification code{'\n'}
           • You control all sharing
         </Text>
       </View>

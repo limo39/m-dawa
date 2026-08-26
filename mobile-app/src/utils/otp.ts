@@ -9,23 +9,18 @@ export interface OTPData {
   used: boolean;
 }
 
-// Generate a 6-digit OTP
-export const generateOTP = (): string => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-// Create OTP data with patient info
-export const createOTPData = (patientId: string, patientName: string): OTPData => {
-  const code = generateOTP();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes expiry
-  
+export const createOtpDisplay = (
+  code: string,
+  patientId: string,
+  patientName: string,
+  expiresAt: Date
+): OTPData => {
   return {
     code,
     patientId,
     patientName,
     expiresAt,
-    createdAt: now,
+    createdAt: new Date(),
     used: false
   };
 };

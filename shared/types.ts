@@ -94,12 +94,14 @@ export interface Vitals {
 }
 
 export interface TransferData {
+  v: 1;
   patient: Patient;
   records: MedicalRecord[];
   prescriptions: Prescription[];
-  appointments?: Appointment[];
-  labResults?: LabResult[];
-  vitals?: Vitals[];
-  timestamp: Date;
-  signature: string; // For data integrity verification
+  appointments: Appointment[];
+  labResults: LabResult[];
+  vitals: Vitals[];
+  generatedAt: string;
+  expiresAt: string;
+  signature: string;
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { loadPatientData } from '../utils/storage';
+import { createSignedTransfer } from '../utils/transfer';
 
 export default function DataTransferScreen() {
   const [patientData, setPatientData] = useState<any>(null);
@@ -18,40 +19,24 @@ export default function DataTransferScreen() {
     setPatientData(data);
   };
 
-  const handleGenerateTransfer = () => {
+  const handleGenerateTransfer = async () => {
     if (!patientData) return;
 
-    // Generate OTP for this transfer
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
+    try {
+      const signed = await createSignedTransfer(patientData);
+      setJsonData(signed.json);
+      setShowQR(true);
+      setCurrentOTP(signed.otp);
 
-    const transferData = {
-      otp,
-      patientId: patientData.patient.id,
-      patientName: `${patientData.patient.firstName} ${patientData.patient.lastName}`,
-      patient: patientData.patient,
-      records: patientData.records || [],
-      prescriptions: patientData.prescriptions || [],
-      appointments: patientData.appointments || [],
-      labResults: patientData.labResults || [],
-      vitals: patientData.vitals || [],
-      generatedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      timestamp: now,
-      signature: 'encrypted_signature_here'
-    };
-
-    const json = JSON.stringify(transferData);
-    setJsonData(json);
-    setShowQR(true);
-    setCurrentOTP(otp);
-    
-    Alert.alert(
-      'QR Code Ready',
-      `Verification Code: ${otp}\n\nShow this QR code to your doctor to transfer your medical records.`,
-      [{ text: 'OK' }]
-    );
+      Alert.alert(
+        'QR Code Ready',
+        `Verification Code: ${signed.otp}\n\nRead this code to your doctor. They must type it after scanning. It is not stored in the QR code.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Failed to generate transfer:', error);
+      Alert.alert('Error', 'Could not generate a transfer code. Please try again.');
+    }
   };
 
   const handleCopyData = () => {
@@ -161,7 +146,8 @@ export default function DataTransferScreen() {
                 1. Doctor opens their app{'\n'}
                 2. Doctor clicks "Scan QR Code"{'\n'}
                 3. Doctor scans this code{'\n'}
-                4. Your records are transferred securely
+                4. Doctor types the verification code{'\n'}
+                5. Your records are imported
               </Text>
             </View>
 
@@ -196,10 +182,10 @@ export default function DataTransferScreen() {
         <Text style={styles.privacyIcon}>🔒</Text>
         <Text style={styles.privacyTitle}>Privacy & Security</Text>
         <Text style={styles.privacyText}>
-          • Your data is encrypted and stored only on this device{'\n'}
-          • You cannot view detailed medical records directly{'\n'}
-          • Only authorized doctors can access your information{'\n'}
-          • Transfer codes expire after use
+          • Your data is stored only on this device{'\n'}
+          • The QR code does not include the verification code{'\n'}
+          • Your doctor must type the 6-digit code to import{'\n'}
+          • Codes expire after 15 minutes and cannot be reused
         </Text>
       </View>
 
@@ -224,7 +210,6 @@ const styles = StyleSheet.create({
     color: '#666'
   },
   headerCard: {
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     backgroundColor: '#667eea',
     padding: 30,
     alignItems: 'center',

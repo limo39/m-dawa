@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import PatientList from './PatientList';
 import PatientDetails from './PatientDetails';
 import QRScanner from './QRScanner';
+import DataReceiver from './DataReceiver';
+import OTPVerification from './OTPVerification';
 import { savePatientData } from '../utils/storage';
+import { markTransferUsed } from '../utils/transferCrypto';
+import { parseTransferJson, type TransferPayload } from '../../../shared/transfer';
 
 interface DashboardProps {
   user: any;
@@ -12,32 +16,33 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [showReceiver, setShowReceiver] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState<unknown | null>(null);
   const [scanStatus, setScanStatus] = useState<string>('');
 
-  const handleQRScan = async (data: string) => {
-    try {
-      const patientData = JSON.parse(data);
-      
-      // Validate the data structure
-      if (!patientData.patient || !patientData.otp) {
-        setScanStatus('Invalid QR code data');
-        return;
-      }
-
-      // Save patient data
-      await savePatientData(patientData);
-      
-      setScanStatus('Patient data received successfully!');
-      setShowScanner(false);
-      
-      // Reload the page to show new patient
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      setScanStatus('Failed to process QR code. Please try again.');
-      console.error('QR scan error:', error);
+  const beginVerification = (raw: string) => {
+    setShowScanner(false);
+    setShowReceiver(false);
+    const parsed = parseTransferJson(raw);
+    if (!parsed.ok) {
+      setScanStatus(parsed.error);
+      return;
     }
+    setPendingTransfer(parsed.value);
+  };
+
+  const handleVerifiedImport = async (payload: TransferPayload) => {
+    const result = await savePatientData(payload);
+    if (!result.success) {
+      setScanStatus('Verified, but saving the patient data failed.');
+      return;
+    }
+    markTransferUsed(payload);
+    setPendingTransfer(null);
+    setScanStatus('Patient data imported.');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
 
   return (
@@ -47,17 +52,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="user-info">
           <span>{user.name} ({user.role})</span>
           <button onClick={() => setShowScanner(true)} className="btn-primary">
-            📷 Scan Patient QR Code
+            Scan patient QR code
+          </button>
+          <button onClick={() => setShowReceiver(true)} className="btn-secondary">
+            Paste transfer data
           </button>
           <button onClick={onLogout} className="btn-secondary">Logout</button>
         </div>
       </header>
-      
+
       <div className="dashboard-content">
         <div className="sidebar">
           <PatientList onSelectPatient={setSelectedPatient} />
         </div>
-        
+
         <div className="main-content">
           {selectedPatient ? (
             <PatientDetails patient={selectedPatient} currentUser={user} />
@@ -70,11 +78,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       </div>
 
       {showScanner && (
-        <QRScanner 
-          onScan={handleQRScan}
+        <QRScanner
+          onScan={beginVerification}
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      {showReceiver && (
+        <DataReceiver
+          onParsed={beginVerification}
+          onClose={() => setShowReceiver(false)}
+        />
+      )}
+
+      {pendingTransfer !== null ? (
+        <OTPVerification
+          payload={pendingTransfer}
+          onSuccess={handleVerifiedImport}
+          onCancel={() => setPendingTransfer(null)}
+        />
+      ) : null}
 
       {scanStatus && (
         <div className="status-toast">

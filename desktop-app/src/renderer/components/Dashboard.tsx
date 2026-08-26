@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PatientList from './PatientList';
 import PatientDetails from './PatientDetails';
 import DataReceiver from './DataReceiver';
 import QRScanner from './QRScanner';
+import OTPVerification from './OTPVerification';
+import { markTransferUsed } from '../utils/transferCrypto';
+import { parseTransferJson, type TransferPayload } from '../../../../shared/transfer';
 
 interface DashboardProps {
   user: any;
@@ -13,36 +16,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [showReceiver, setShowReceiver] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState<unknown | null>(null);
   const [scanStatus, setScanStatus] = useState<string>('');
 
-  const handleQRScan = async (data: string) => {
-    try {
-      const patientData = JSON.parse(data);
-      
-      // Validate the data structure
-      if (!patientData.patient || !patientData.otp) {
-        setScanStatus('Invalid QR code data');
-        return;
-      }
-
-      // Save patient data using electronAPI
-      const result = await window.electronAPI.transfer.receive(patientData);
-      
-      if (result.success) {
-        setScanStatus('Patient data received successfully!');
-        setShowScanner(false);
-        
-        // Reload the page to show new patient
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        setScanStatus('Failed to import patient data');
-      }
-    } catch (error) {
-      setScanStatus('Failed to process QR code. Please try again.');
-      console.error('QR scan error:', error);
+  const beginVerification = (raw: string) => {
+    setShowScanner(false);
+    setShowReceiver(false);
+    const parsed = parseTransferJson(raw);
+    if (!parsed.ok) {
+      setScanStatus(parsed.error);
+      return;
     }
+    setPendingTransfer(parsed.value);
+  };
+
+  const handleVerifiedImport = async (payload: TransferPayload) => {
+    const result = await window.electronAPI.transfer.receive(payload);
+    if (!result.success) {
+      setScanStatus(result.error || 'Failed to import patient data');
+      return;
+    }
+    markTransferUsed(payload);
+    setPendingTransfer(null);
+    setScanStatus('Patient data imported.');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
 
   return (
@@ -52,20 +51,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="user-info">
           <span>{user.name} ({user.role})</span>
           <button onClick={() => setShowScanner(true)} className="btn-primary">
-            📷 Scan QR Code
+            Scan QR code
           </button>
           <button onClick={() => setShowReceiver(true)} className="btn-secondary">
-            📋 Manual Input
+            Paste transfer data
           </button>
           <button onClick={onLogout} className="btn-secondary">Logout</button>
         </div>
       </header>
-      
+
       <div className="dashboard-content">
         <div className="sidebar">
           <PatientList onSelectPatient={setSelectedPatient} />
         </div>
-        
+
         <div className="main-content">
           {selectedPatient ? (
             <PatientDetails patient={selectedPatient} currentUser={user} />
@@ -78,15 +77,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       </div>
 
       {showScanner && (
-        <QRScanner 
-          onScan={handleQRScan}
+        <QRScanner
+          onScan={beginVerification}
           onClose={() => setShowScanner(false)}
         />
       )}
 
       {showReceiver && (
-        <DataReceiver onClose={() => setShowReceiver(false)} />
+        <DataReceiver
+          onParsed={beginVerification}
+          onClose={() => setShowReceiver(false)}
+        />
       )}
+
+      {pendingTransfer !== null ? (
+        <OTPVerification
+          payload={pendingTransfer}
+          onSuccess={handleVerifiedImport}
+          onCancel={() => setPendingTransfer(null)}
+        />
+      ) : null}
 
       {scanStatus && (
         <div className="status-toast">
